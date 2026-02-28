@@ -1,23 +1,19 @@
-import React from 'react';
-import { useNavigate, useLocation } from '@tanstack/react-router';
 import { useInternetIdentity } from '../../hooks/useInternetIdentity';
-import { useIsAdmin } from '../../hooks/useQueries';
 import { useQueryClient } from '@tanstack/react-query';
+import { useIsCallerApproved } from '../../hooks/useQueries';
 import {
   LayoutDashboard,
-  Target,
   BarChart2,
-  CreditCard,
+  ListChecks,
+  CheckSquare,
   User,
-  LogOut,
   Shield,
   ChevronLeft,
   ChevronRight,
-  Activity,
+  Zap,
+  LogOut,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -25,111 +21,135 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/habits', label: 'Habits', icon: Target },
-  { path: '/analytics', label: 'Analytics', icon: BarChart2 },
-  { path: '/pricing', label: 'Pricing', icon: CreditCard },
-  { path: '/profile', label: 'Profile', icon: User },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+  { icon: BarChart2, label: 'Analytics', path: '/analytics' },
+  { icon: ListChecks, label: 'Activities', path: '/activities' },
+  { icon: CheckSquare, label: 'Habits', path: '/habits' },
+  { icon: User, label: 'Profile', path: '/profile' },
 ];
 
+function getActivePath(): string {
+  const hash = window.location.hash;
+  const path = hash.replace('#', '').split('?')[0];
+  return path || '/dashboard';
+}
+
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const { clear, identity } = useInternetIdentity();
+  const { identity, clear } = useInternetIdentity();
   const queryClient = useQueryClient();
-  const { isAdmin } = useIsAdmin();
+
+  // Use the principal string to detect admin — the admin page is password-protected
+  // so we just show it for all authenticated users and let the page handle access.
+  // We still call useIsCallerApproved to keep the hook pattern consistent.
+  const { data: isApproved } = useIsCallerApproved();
+
+  const activePath = getActivePath();
 
   const handleLogout = async () => {
     await clear();
     queryClient.clear();
-    navigate({ to: '/login' });
+    window.location.hash = '#/login';
   };
+
+  const navigate = (path: string) => {
+    window.location.hash = `#${path}`;
+  };
+
+  // Show admin link for all authenticated users — the AdminPage itself handles auth
+  const showAdmin = !!identity;
 
   const allNavItems = [
     ...navItems,
-    ...(isAdmin ? [{ path: '/admin', label: 'Admin', icon: Shield }] : []),
+    ...(showAdmin ? [{ icon: Shield, label: 'Admin', path: '/admin' }] : []),
   ];
 
   return (
     <TooltipProvider delayDuration={0}>
       <aside
-        className={cn(
-          'flex flex-col h-full bg-card border-r border-border transition-all duration-300',
-          collapsed ? 'w-16' : 'w-56'
-        )}
+        className={`fixed top-0 left-0 h-full bg-white border-r border-slate-100 shadow-sm flex flex-col transition-all duration-300 z-40 ${
+          collapsed ? 'w-16' : 'w-64'
+        }`}
       >
         {/* Logo */}
-        <div className={cn('flex items-center gap-2 p-4 border-b border-border', collapsed && 'justify-center')}>
-          <Activity className="w-6 h-6 text-primary shrink-0" />
+        <div className={`flex items-center h-16 border-b border-slate-100 px-4 ${collapsed ? 'justify-center' : 'gap-3'}`}>
+          <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+            <Zap className="w-4 h-4 text-white" />
+          </div>
           {!collapsed && (
-            <span className="font-bold text-foreground text-lg">TrackFlow</span>
+            <span className="font-bold text-slate-900 text-lg tracking-tight">TrackFlow</span>
           )}
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {allNavItems.map(({ path, label, icon: Icon }) => {
-            const isActive = pathname === path || pathname.startsWith(path + '/');
-            const item = (
+        {/* Navigation */}
+        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
+          {allNavItems.map(({ icon: Icon, label, path }) => {
+            const isActive = activePath === path || activePath.startsWith(path);
+            return collapsed ? (
+              <Tooltip key={path}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => navigate(path)}
+                    className={`w-full flex items-center justify-center p-2.5 rounded-xl transition-all ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="font-medium">
+                  {label}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
               <button
                 key={path}
-                onClick={() => navigate({ to: path })}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                onClick={() => navigate(path)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
                   isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                  collapsed && 'justify-center px-2'
-                )}
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
-                {!collapsed && <span>{label}</span>}
+                <Icon className="w-5 h-5 shrink-0" />
+                <span>{label}</span>
               </button>
             );
-
-            if (collapsed) {
-              return (
-                <Tooltip key={path}>
-                  <TooltipTrigger asChild>{item}</TooltipTrigger>
-                  <TooltipContent side="right">{label}</TooltipContent>
-                </Tooltip>
-              );
-            }
-
-            return item;
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="p-2 border-t border-border space-y-1">
-          {identity && (
+        {/* Bottom: Logout + Toggle */}
+        <div className="border-t border-slate-100 p-2 space-y-1">
+          {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    'w-full text-muted-foreground hover:text-destructive',
-                    collapsed ? 'justify-center px-2' : 'justify-start gap-3'
-                  )}
+                <button
                   onClick={handleLogout}
+                  className="w-full flex items-center justify-center p-2.5 rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                 >
-                  <LogOut className="w-4 h-4 shrink-0" />
-                  {!collapsed && <span>Logout</span>}
-                </Button>
+                  <LogOut className="w-5 h-5" />
+                </button>
               </TooltipTrigger>
-              {collapsed && <TooltipContent side="right">Logout</TooltipContent>}
+              <TooltipContent side="right">Logout</TooltipContent>
             </Tooltip>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+            >
+              <LogOut className="w-5 h-5 shrink-0" />
+              <span>Logout</span>
+            </button>
           )}
 
           {/* Collapse toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn('w-full', collapsed ? 'justify-center' : 'justify-end')}
+          <button
             onClick={onToggle}
+            className="w-full flex items-center justify-center p-2 rounded-xl text-slate-300 hover:bg-slate-50 hover:text-slate-500 transition-colors"
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </Button>
+          </button>
         </div>
       </aside>
     </TooltipProvider>

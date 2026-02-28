@@ -2,12 +2,12 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-fix-the-actor-not-available-error-on-the-dashboard-and-throughout-the-app-ensure-the-backend-actor-is-properly-initialized-and-available-before-any-queries-or-mutations-are-executed-add-defensive-checks-so-that-queries-dependent-on-the-actor-do-not-fire-until-the-actor-is-ready-and-display-appropriate-loading-states-instead-of-errors",
-      "featureTitle": "Fix the 'actor not available' error on the dashboard and throughout the app. Ensure the backend actor is properly initialized and available before any queries or mutations are executed. Add defensive checks so that queries dependent on the actor do not fire until the actor is ready, and display appropriate loading states instead of errors.",
+      "featureId": "feature-fix-the-dashboard-page-so-that-habit-progress-bars-today-s-stats-cards-and-activity-timeline-all-load-and-display-data-correctly-without-remaining-blank-or-failing-to-fetch",
+      "featureTitle": "Fix the dashboard page so that habit progress bars, today's stats cards, and activity timeline all load and display data correctly without remaining blank or failing to fetch.",
       "files": [
         "frontend/src/components/dashboard/ActivityTimeline.tsx",
-        "frontend/src/components/dashboard/AddActivityForm.tsx",
-        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/components/dashboard/HabitProgressBar.tsx",
+        "frontend/src/components/dashboard/StatsCard.tsx",
         "frontend/src/pages/DashboardPage.tsx"
       ],
       "components": [
@@ -26,11 +26,9 @@
       "confidence": "high"
     },
     {
-      "featureId": "feature-fix-dashboard-data-not-loading-ensure-that-all-dashboard-data-stats-today-s-activities-habit-progress-bars-is-fetched-and-rendered-correctly-after-the-actor-becomes-available-fix-any-query-keys-stale-data-or-missing-invalidation-that-prevents-data-from-appearing-on-the-dashboardpage",
-      "featureTitle": "Fix dashboard data not loading. Ensure that all dashboard data (stats, today's activities, habit progress bars) is fetched and rendered correctly after the actor becomes available. Fix any query keys, stale data, or missing invalidation that prevents data from appearing on the DashboardPage.",
+      "featureId": "feature-ensure-the-react-query-hooks-used-by-dashboardpage-habits-query-activities-query-user-profile-query-correctly-call-the-backend-actor-and-handle-loading-error-states-gracefully-showing-a-spinner-or-fallback-ui-instead-of-a-blank-screen-while-data-is-being-fetched",
+      "featureTitle": "Ensure the React Query hooks used by DashboardPage (habits query, activities query, user profile query) correctly call the backend actor and handle loading/error states gracefully, showing a spinner or fallback UI instead of a blank screen while data is being fetched.",
       "files": [
-        "frontend/src/components/dashboard/HabitProgressBar.tsx",
-        "frontend/src/components/dashboard/StatsCard.tsx",
         "frontend/src/hooks/useQueries.ts",
         "frontend/src/pages/DashboardPage.tsx"
       ],
@@ -50,12 +48,11 @@
       "confidence": "high"
     },
     {
-      "featureId": "feature-fix-habit-creation-on-the-habitspage-so-that-new-habits-are-saved-to-the-backend-canister-ensure-the-createhabit-mutation-in-usequeries-ts-is-correctly-calling-the-backend-actor-method-handling-errors-gracefully-and-invalidating-the-habits-query-cache-on-success-so-the-new-habit-appears-immediately",
-      "featureTitle": "Fix habit creation on the HabitsPage so that new habits are saved to the backend canister. Ensure the createHabit mutation in useQueries.ts is correctly calling the backend actor method, handling errors gracefully, and invalidating the habits query cache on success so the new habit appears immediately.",
+      "featureId": "feature-verify-and-fix-the-useactor-hook-integration-in-the-dashboard-context-so-the-actor-is-fully-initialized-before-any-dashboard-queries-execute-preventing-null-undefined-actor-calls-that-silently-return-no-data",
+      "featureTitle": "Verify and fix the useActor hook integration in the dashboard context so the actor is fully initialized before any dashboard queries execute, preventing null/undefined actor calls that silently return no data.",
       "files": [
-        "frontend/src/components/habits/HabitFormModal.tsx",
         "frontend/src/hooks/useQueries.ts",
-        "frontend/src/pages/HabitsPage.tsx"
+        "frontend/src/pages/DashboardPage.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -69,51 +66,6 @@
       ],
       "testIds": [
         "REQ-3"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-wire-up-all-buttons-on-the-pricingpage-so-they-are-fully-functional-plan-selection-buttons-should-navigate-authenticated-users-to-the-paymentpage-with-the-selected-plan-as-a-parameter-and-prompt-unauthenticated-users-to-log-in-ensure-ctas-and-any-other-buttons-on-the-page-perform-their-intended-actions-without-errors",
-      "featureTitle": "Wire up all buttons on the PricingPage so they are fully functional. Plan selection buttons should navigate authenticated users to the PaymentPage with the selected plan as a parameter, and prompt unauthenticated users to log in. Ensure CTAs and any other buttons on the page perform their intended actions without errors.",
-      "files": [
-        "frontend/src/pages/PricingPage.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "blob-storage@4.0.0",
-        "user-approval@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-4"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-add-frontend-admin-access-control-in-usequeries-ts-expose-an-isadmin-query-that-checks-if-the-current-user-is-admin-via-the-backend-in-the-sidebar-show-admin-navigation-links-only-when-isadmin-is-true-protect-the-adminpage-route-so-non-admin-users-are-redirected-to-the-dashboard-remove-or-supplement-the-existing-session-storage-password-gate-on-adminpage-with-the-principal-based-admin-check",
-      "featureTitle": "Add frontend admin access control. In useQueries.ts, expose an isAdmin query that checks if the current user is admin via the backend. In the Sidebar, show admin navigation links only when isAdmin is true. Protect the AdminPage route so non-admin users are redirected to the dashboard. Remove or supplement the existing session-storage password gate on AdminPage with the principal-based admin check.",
-      "files": [
-        "frontend/src/App.tsx",
-        "frontend/src/components/layout/Sidebar.tsx",
-        "frontend/src/hooks/useQueries.ts",
-        "frontend/src/pages/AdminPage.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "blob-storage@4.0.0",
-        "user-approval@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-6"
       ],
       "confidence": "high"
     }

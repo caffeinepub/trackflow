@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useUpdateActivity } from '../../hooks/useQueries';
-import type { Activity, Habit } from '../../backend';
+import { Activity, Habit } from '../../backend';
+import { Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,196 +13,167 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface EditActivityModalProps {
   activity: Activity;
   habits: Habit[];
-  open: boolean;
   onClose: () => void;
 }
 
-function nsToTimeString(ns: bigint): string {
-  const ms = Number(ns) / 1_000_000;
-  const d = new Date(ms);
-  const h = d.getHours().toString().padStart(2, '0');
-  const m = d.getMinutes().toString().padStart(2, '0');
-  return `${h}:${m}`;
+function tsToTimeString(ts: bigint): string {
+  const d = new Date(Number(ts) / 1_000_000);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-export default function EditActivityModal({ activity, habits, open, onClose }: EditActivityModalProps) {
+export default function EditActivityModal({ activity, habits, onClose }: EditActivityModalProps) {
   const updateActivity = useUpdateActivity();
 
-  const [habitId, setHabitId] = useState(activity.habitId.toString());
+  const [habitId, setHabitId] = useState(String(activity.habitId));
   const [customName, setCustomName] = useState(activity.customName);
-  const [startTime, setStartTime] = useState(nsToTimeString(activity.startTime));
-  const [endTime, setEndTime] = useState(nsToTimeString(activity.endTime));
+  const [startTime, setStartTime] = useState(tsToTimeString(activity.startTime));
+  const [endTime, setEndTime] = useState(tsToTimeString(activity.endTime));
   const [isProductive, setIsProductive] = useState(activity.isProductive);
-  const [earnings, setEarnings] = useState(Number(activity.earnings).toString());
+  const [earnings, setEarnings] = useState(String(activity.earnings));
   const [notes, setNotes] = useState(activity.notes);
 
-  useEffect(() => {
-    if (open) {
-      setHabitId(activity.habitId.toString());
-      setCustomName(activity.customName);
-      setStartTime(nsToTimeString(activity.startTime));
-      setEndTime(nsToTimeString(activity.endTime));
-      setIsProductive(activity.isProductive);
-      setEarnings(Number(activity.earnings).toString());
-      setNotes(activity.notes);
-    }
-  }, [activity, open]);
-
-  const calculateDuration = (): number => {
+  const calcDuration = (): number => {
     const [sh, sm] = startTime.split(':').map(Number);
     const [eh, em] = endTime.split(':').map(Number);
     return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const duration = calculateDuration();
+  const handleSave = async () => {
+    const duration = calcDuration();
     if (duration <= 0) {
       toast.error('End time must be after start time');
       return;
     }
 
-    // Reconstruct timestamps using the original date
-    const originalDateMs = Number(activity.date) / 1_000_000;
-    const dateBase = new Date(originalDateMs);
-    dateBase.setHours(0, 0, 0, 0);
-
-    const [sh, sm] = startTime.split(':').map(Number);
-    const [eh, em] = endTime.split(':').map(Number);
-
-    const startDate = new Date(dateBase);
-    startDate.setHours(sh, sm, 0, 0);
-    const endDate = new Date(dateBase);
-    endDate.setHours(eh, em, 0, 0);
+    const dateStr = new Date(Number(activity.date) / 1_000_000).toISOString().split('T')[0];
+    const startDate = new Date(`${dateStr}T${startTime}:00`);
+    const endDate = new Date(`${dateStr}T${endTime}:00`);
 
     try {
       await updateActivity.mutateAsync({
         activityId: activity.id,
         habitId: BigInt(habitId),
         customName: customName.trim(),
-        startTime: BigInt(startDate.getTime()) * 1_000_000n,
-        endTime: BigInt(endDate.getTime()) * 1_000_000n,
+        startTime: BigInt(startDate.getTime()) * BigInt(1_000_000),
+        endTime: BigInt(endDate.getTime()) * BigInt(1_000_000),
         duration: BigInt(duration),
         isProductive,
-        earnings: BigInt(Math.round(parseFloat(earnings) || 0)),
+        earnings: BigInt(parseInt(earnings) || 0),
         notes: notes.trim(),
         date: activity.date,
       });
-      toast.success('Activity updated!');
+      toast.success('Activity updated');
       onClose();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update activity';
-      toast.error(msg);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update activity');
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Activity</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1 col-span-2">
-              <Label>Habit</Label>
+            <div>
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Habit</Label>
               <Select value={habitId} onValueChange={setHabitId}>
-                <SelectTrigger>
+                <SelectTrigger className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {habits.map((h) => (
-                    <SelectItem key={h.id.toString()} value={h.id.toString()}>
-                      {h.name}
-                    </SelectItem>
+                  <SelectItem value="0">No habit</SelectItem>
+                  {habits.map(h => (
+                    <SelectItem key={String(h.id)} value={String(h.id)}>{h.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-1 col-span-2">
-              <Label>Activity Name</Label>
+            <div>
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Activity Name</Label>
               <Input
                 value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                placeholder="Activity name"
+                onChange={e => setCustomName(e.target.value)}
+                className="h-9"
               />
             </div>
-
-            <div className="space-y-1">
-              <Label>Start Time</Label>
+            <div>
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Start Time</Label>
               <Input
                 type="time"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={e => setStartTime(e.target.value)}
+                className="h-9"
               />
             </div>
-
-            <div className="space-y-1">
-              <Label>End Time</Label>
+            <div>
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">End Time</Label>
               <Input
                 type="time"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={e => setEndTime(e.target.value)}
+                className="h-9"
               />
             </div>
-
-            <div className="space-y-1 col-span-2">
-              <Label>Earnings (₹)</Label>
+            <div>
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Earnings (₹)</Label>
               <Input
                 type="number"
                 min="0"
                 value={earnings}
-                onChange={(e) => setEarnings(e.target.value)}
+                onChange={e => setEarnings(e.target.value)}
+                className="h-9"
               />
             </div>
-
-            <div className="space-y-1 col-span-2">
-              <Label>Notes</Label>
-              <Input
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Optional notes"
-              />
+            <div className="flex items-end pb-1">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="edit-productive"
+                  checked={isProductive}
+                  onCheckedChange={v => setIsProductive(!!v)}
+                />
+                <Label htmlFor="edit-productive" className="text-sm cursor-pointer">Productive</Label>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="editProductive"
-              checked={isProductive}
-              onCheckedChange={(v) => setIsProductive(!!v)}
+          <div>
+            <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Notes</Label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={2}
+              className="resize-none"
             />
-            <Label htmlFor="editProductive" className="cursor-pointer">
-              Mark as productive
-            </Label>
           </div>
+        </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={updateActivity.isPending}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={updateActivity.isPending}>
-              {updateActivity.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            onClick={handleSave}
+            disabled={updateActivity.isPending}
+            className="bg-indigo-600 hover:bg-indigo-700"
+          >
+            {updateActivity.isPending ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+              </span>
+            ) : (
+              'Save Changes'
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

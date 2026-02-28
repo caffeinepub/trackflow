@@ -120,7 +120,7 @@ export interface _SERVICE {
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   /**
-   * / Approve a payment request and update the user's plan. Admin only.
+   * / Approve a payment request and update the user's plan.
    */
   'approvePaymentRequest' : ActorMethod<[bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
@@ -129,7 +129,7 @@ export interface _SERVICE {
    */
   'assignRole' : ActorMethod<[Principal, UserRole], undefined>,
   /**
-   * / Create a coupon. Admin only.
+   * / Create a coupon
    */
   'createCoupon' : ActorMethod<
     [string, bigint, bigint, [] | [Time]],
@@ -148,7 +148,7 @@ export interface _SERVICE {
    */
   'deleteActivity' : ActorMethod<[bigint], undefined>,
   /**
-   * / Delete a coupon by code. Admin only.
+   * / Delete a coupon by code.
    */
   'deleteCoupon' : ActorMethod<[string], undefined>,
   /**
@@ -164,11 +164,11 @@ export interface _SERVICE {
     Array<Activity>
   >,
   /**
-   * / Get all payment requests. Admin only.
+   * / Get all payment requests.
    */
   'getAllPaymentRequests' : ActorMethod<[], Array<PaymentRequest>>,
   /**
-   * / Returns all user profiles. Admin only.
+   * / Returns all user profiles.
    */
   'getAllUsers' : ActorMethod<[], Array<UserProfile>>,
   /**
@@ -190,11 +190,11 @@ export interface _SERVICE {
    */
   'getMyPaymentRequests' : ActorMethod<[], Array<PaymentRequest>>,
   /**
-   * / Get all pending payment requests. Admin only.
+   * / Get all pending payment requests.
    */
   'getPendingPaymentRequests' : ActorMethod<[], Array<PaymentRequest>>,
   /**
-   * / Platform-wide statistics. Admin only.
+   * / Platform-wide statistics
    */
   'getPlatformStats' : ActorMethod<[], PlatformStats>,
   /**
@@ -211,7 +211,7 @@ export interface _SERVICE {
    */
   'listApprovals' : ActorMethod<[], Array<UserApprovalInfo>>,
   /**
-   * / List all coupons. Admin only.
+   * / List all coupons.
    */
   'listCoupons' : ActorMethod<[], Array<Coupon>>,
   /**
@@ -222,7 +222,7 @@ export interface _SERVICE {
     undefined
   >,
   /**
-   * / Reject a payment request. Admin only.
+   * / Reject a payment request.
    */
   'rejectPaymentRequest' : ActorMethod<[bigint], undefined>,
   /**
@@ -234,7 +234,7 @@ export interface _SERVICE {
    */
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   /**
-   * / Search coupons by code substring. Admin only.
+   * / Search coupons by code substring.
    */
   'searchCoupons' : ActorMethod<[string], Array<Coupon>>,
   /**

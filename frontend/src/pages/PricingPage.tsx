@@ -1,68 +1,90 @@
-import React, { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useState, useEffect } from 'react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetCallerUserProfile, useSaveCallerUserProfile } from '../hooks/useQueries';
+import { useGetCallerUserProfile, useSaveCallerUserProfile, useRequestApproval } from '../hooks/useQueries';
+import { Plan } from '../backend';
+import { Check, Zap, Star, Crown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Check, Zap, Crown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Plan } from '../backend';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
-const plans = [
+type PlanId = 'free' | 'starter' | 'premium';
+
+interface PlanConfig {
+  id: PlanId;
+  name: string;
+  icon: React.ElementType;
+  price: number | null;
+  priceLabel: string;
+  period: string;
+  description: string;
+  color: string;
+  features: string[];
+  cta: string;
+  highlighted: boolean;
+  yearlyPrice?: number;
+  yearlyLabel?: string;
+}
+
+const plans: PlanConfig[] = [
   {
-    id: 'free' as const,
+    id: 'free',
     name: 'Free',
-    price: { monthly: 0, yearly: 0 },
-    icon: <Zap className="w-5 h-5" />,
+    icon: Zap,
+    price: null,
+    priceLabel: '₹0',
+    period: 'forever',
     description: 'Perfect for getting started',
+    color: 'from-slate-500 to-slate-600',
     features: [
       'Up to 3 habits',
-      'Basic activity tracking',
+      'Basic checkbox analytics',
+      'Activity logging',
       'Daily & weekly goals',
-      'Activity timeline',
     ],
-    cta: 'Get Started Free',
+    cta: 'Start for Free',
     highlighted: false,
   },
   {
-    id: 'starter' as const,
+    id: 'starter',
     name: 'Starter',
-    price: { monthly: 199, yearly: 1999 },
-    icon: <Zap className="w-5 h-5 text-primary" />,
+    icon: Star,
+    price: 149,
+    priceLabel: '₹149',
+    period: '/month',
     description: 'For serious habit builders',
+    color: 'from-indigo-500 to-indigo-600',
     features: [
       'Up to 10 habits',
-      'Advanced analytics',
+      'Normal analytics with charts',
       'Earnings tracking',
-      'Coupon discounts',
-      'Priority support',
+      'Activity timeline',
+      'CSV export',
+      'Progress bars',
     ],
     cta: 'Get Starter',
     highlighted: true,
   },
   {
-    id: 'premium' as const,
+    id: 'premium',
     name: 'Premium',
-    price: { monthly: 499, yearly: 4999 },
-    icon: <Crown className="w-5 h-5 text-yellow-500" />,
-    description: 'Unlimited everything',
+    icon: Crown,
+    price: 399,
+    priceLabel: '₹399',
+    period: '/month',
+    yearlyPrice: 3199,
+    yearlyLabel: '₹3,199/year',
+    description: 'Unlimited productivity power',
+    color: 'from-purple-500 to-purple-600',
     features: [
       'Unlimited habits',
-      'Full analytics suite',
-      'Earnings & productivity reports',
-      'Coupon discounts',
+      'Full advanced analytics',
       'Priority support',
-      'Early access to new features',
+      'All Starter features',
+      'Bulk operations',
+      'Data export (JSON/CSV)',
     ],
     cta: 'Go Premium',
     highlighted: false,
@@ -70,239 +92,236 @@ const plans = [
 ];
 
 export default function PricingPage() {
-  const navigate = useNavigate();
-  const { identity, login, loginStatus } = useInternetIdentity();
-  const { data: profile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
+  const { identity } = useInternetIdentity();
+  const { data: userProfile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
   const saveProfile = useSaveCallerUserProfile();
+  const requestApproval = useRequestApproval();
 
-  const isAuthenticated = !!identity;
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [showProfileSetup, setShowProfileSetup] = useState(false);
-  const [pendingPlan, setPendingPlan] = useState<string | null>(null);
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
+  const [showSetup, setShowSetup] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [pendingPlan, setPendingPlan] = useState<{ plan: PlanId; yearly?: boolean } | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
 
-  const showProfileModal = isAuthenticated && isFetched && profile === null;
+  const showProfileSetup = !!identity && !profileLoading && isFetched && userProfile === null;
 
-  const handlePlanSelect = (planId: string) => {
-    if (!isAuthenticated) {
-      // Redirect to login
-      navigate({ to: '/login' });
+  useEffect(() => {
+    if (showProfileSetup) {
+      setShowSetup(true);
+    }
+  }, [showProfileSetup]);
+
+  // If user already has a paid plan, redirect to dashboard
+  useEffect(() => {
+    if (userProfile && (userProfile.plan === 'starter' || userProfile.plan === 'premium')) {
+      window.location.hash = '#/dashboard';
+    }
+  }, [userProfile]);
+
+  const handleProfileSave = async () => {
+    if (!name.trim() || !email.trim()) {
+      toast.error('Please enter your name and email');
       return;
     }
+    setSavingProfile(true);
+    try {
+      const now = BigInt(Date.now()) * BigInt(1_000_000);
+      await saveProfile.mutateAsync({
+        principal: identity!.getPrincipal(),
+        name: name.trim(),
+        email: email.trim(),
+        phone: '',
+        plan: Plan.free,
+        planExpiry: undefined,
+        createdAt: now,
+        lastLogin: now,
+      });
+      await requestApproval.mutateAsync();
+      setShowSetup(false);
+      toast.success('Profile created! Choose your plan below.');
+      if (pendingPlan) {
+        handlePlanSelect(pendingPlan.plan, pendingPlan.yearly);
+        setPendingPlan(null);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save profile');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
-    if (showProfileModal || (isAuthenticated && isFetched && profile === null)) {
-      // Need to set up profile first
-      setPendingPlan(planId);
-      setShowProfileSetup(true);
+  const handlePlanSelect = (planId: PlanId, yearly?: boolean) => {
+    if (!isFetched) return;
+
+    if (!userProfile) {
+      setPendingPlan({ plan: planId, yearly });
+      setShowSetup(true);
       return;
     }
 
     if (planId === 'free') {
-      toast.success("You're on the Free plan!");
+      window.location.hash = '#/dashboard';
       return;
     }
 
-    navigate({ to: '/payment', search: { plan: planId, cycle: billingCycle } });
+    const params = new URLSearchParams({ plan: planId, cycle: yearly ? 'yearly' : 'monthly' });
+    window.location.hash = `#/payment?${params.toString()}`;
   };
 
-  const handleProfileSave = async () => {
-    if (!newName.trim()) {
-      toast.error('Please enter your name');
-      return;
-    }
-    if (!identity) return;
-
-    try {
-      await saveProfile.mutateAsync({
-        principal: identity.getPrincipal(),
-        name: newName.trim(),
-        email: newEmail.trim(),
-        phone: '',
-        plan: Plan.free,
-        planExpiry: undefined,
-        createdAt: BigInt(Date.now()) * 1_000_000n,
-        lastLogin: BigInt(Date.now()) * 1_000_000n,
-      });
-      toast.success('Profile created!');
-      setShowProfileSetup(false);
-
-      if (pendingPlan && pendingPlan !== 'free') {
-        navigate({ to: '/payment', search: { plan: pendingPlan, cycle: billingCycle } });
-      }
-      setPendingPlan(null);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save profile';
-      toast.error(msg);
-    }
-  };
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-4 py-16 space-y-12">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-foreground">Simple, Transparent Pricing</h1>
-          <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-            Choose the plan that fits your productivity goals. Upgrade or downgrade anytime.
-          </p>
-
-          {/* Billing Toggle */}
-          <div className="flex items-center justify-center gap-3 mt-6">
-            <button
-              onClick={() => setBillingCycle('monthly')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                billingCycle === 'monthly'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 py-16 px-4">
+      {/* Profile Setup Dialog */}
+      <Dialog open={showSetup} onOpenChange={setShowSetup}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Welcome to TrackFlow! 👋</DialogTitle>
+            <DialogDescription>
+              Let's set up your profile before you get started.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="setup-name">Your Name</Label>
+              <Input
+                id="setup-name"
+                placeholder="Enter your full name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="setup-email">Email Address</Label>
+              <Input
+                id="setup-email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <Button
+              onClick={handleProfileSave}
+              disabled={savingProfile}
+              className="w-full bg-indigo-600 hover:bg-indigo-700"
             >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBillingCycle('yearly')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                billingCycle === 'yearly'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Yearly
-              <Badge variant="secondary" className="ml-2 text-xs">Save 20%</Badge>
-            </button>
+              {savingProfile ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                </span>
+              ) : (
+                'Continue'
+              )}
+            </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-14">
+          <div className="inline-flex items-center gap-2 bg-indigo-100 text-indigo-700 rounded-full px-4 py-1.5 text-sm font-medium mb-4">
+            <Zap className="w-4 h-4" />
+            Choose Your Plan
+          </div>
+          <h1 className="text-4xl font-extrabold text-slate-900 mb-3">
+            Simple, Transparent Pricing
+          </h1>
+          <p className="text-slate-500 text-lg max-w-xl mx-auto">
+            Start free, upgrade when you're ready. All plans include core tracking features.
+          </p>
         </div>
 
         {/* Plan Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {plans.map((plan) => {
-            const price = plan.price[billingCycle];
-            const isCurrentPlan = profile?.plan === plan.id;
-
+            const Icon = plan.icon;
             return (
               <Card
                 key={plan.id}
-                className={`relative flex flex-col ${
+                className={`relative overflow-hidden transition-all hover:shadow-xl ${
                   plan.highlighted
-                    ? 'border-primary shadow-lg ring-2 ring-primary'
-                    : 'border-border'
+                    ? 'border-2 border-indigo-500 shadow-lg shadow-indigo-100 scale-105'
+                    : 'border border-slate-200'
                 }`}
               >
                 {plan.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground px-3">Most Popular</Badge>
+                  <div className="absolute top-0 left-0 right-0 bg-indigo-600 text-white text-xs font-bold text-center py-1.5 tracking-wide">
+                    MOST POPULAR
                   </div>
                 )}
-
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    {plan.icon}
-                    <CardTitle className="text-xl">{plan.name}</CardTitle>
+                <CardHeader className={plan.highlighted ? 'pt-8' : 'pt-6'}>
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${plan.color} flex items-center justify-center mb-3`}>
+                    <Icon className="w-6 h-6 text-white" />
                   </div>
-                  <CardDescription>{plan.description}</CardDescription>
+                  <CardTitle className="text-xl font-bold text-slate-900">{plan.name}</CardTitle>
+                  <CardDescription className="text-slate-500">{plan.description}</CardDescription>
                   <div className="mt-3">
-                    {price === 0 ? (
-                      <span className="text-3xl font-bold text-foreground">Free</span>
-                    ) : (
-                      <div>
-                        <span className="text-3xl font-bold text-foreground">₹{price}</span>
-                        <span className="text-muted-foreground text-sm">
-                          /{billingCycle === 'monthly' ? 'mo' : 'yr'}
-                        </span>
-                      </div>
+                    <span className="text-4xl font-extrabold text-slate-900">{plan.priceLabel}</span>
+                    <span className="text-slate-500 text-sm ml-1">{plan.period}</span>
+                    {plan.yearlyLabel && plan.price && plan.yearlyPrice && (
+                      <p className="text-xs text-emerald-600 font-medium mt-1">
+                        or {plan.yearlyLabel} (save ₹{plan.price * 12 - plan.yearlyPrice})
+                      </p>
                     )}
                   </div>
                 </CardHeader>
-
-                <CardContent className="flex-1 flex flex-col gap-4">
-                  <ul className="space-y-2 flex-1">
+                <CardContent className="space-y-4">
+                  <ul className="space-y-2.5">
                     {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-center gap-2 text-sm">
-                        <Check className="w-4 h-4 text-green-500 shrink-0" />
-                        <span className="text-foreground">{feature}</span>
+                      <li key={feature} className="flex items-center gap-2.5 text-sm text-slate-700">
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                        {feature}
                       </li>
                     ))}
                   </ul>
 
-                  <Button
-                    className="w-full mt-auto"
-                    variant={plan.highlighted ? 'default' : 'outline'}
-                    disabled={isCurrentPlan || profileLoading || loginStatus === 'logging-in'}
-                    onClick={() => handlePlanSelect(plan.id)}
-                  >
-                    {loginStatus === 'logging-in' ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Logging in...
-                      </>
-                    ) : isCurrentPlan ? (
-                      'Current Plan'
-                    ) : !isAuthenticated ? (
-                      'Login to Get Started'
-                    ) : (
-                      plan.cta
-                    )}
-                  </Button>
+                  {plan.id === 'free' ? (
+                    <Button
+                      onClick={() => handlePlanSelect('free')}
+                      variant="outline"
+                      className="w-full mt-4 border-slate-300 hover:border-indigo-400 hover:text-indigo-600"
+                    >
+                      {plan.cta}
+                    </Button>
+                  ) : (
+                    <div className="space-y-2 mt-4">
+                      <Button
+                        onClick={() => handlePlanSelect(plan.id, false)}
+                        className={`w-full ${plan.highlighted ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-purple-600 hover:bg-purple-700'}`}
+                      >
+                        {plan.cta} — Monthly
+                      </Button>
+                      {plan.yearlyPrice && plan.price && (
+                        <Button
+                          onClick={() => handlePlanSelect(plan.id, true)}
+                          variant="outline"
+                          className={`w-full ${plan.highlighted ? 'border-indigo-300 text-indigo-600 hover:bg-indigo-50' : 'border-purple-300 text-purple-600 hover:bg-purple-50'}`}
+                        >
+                          {plan.cta} — Yearly (Save ₹{plan.price * 12 - plan.yearlyPrice})
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
           })}
         </div>
 
-        {/* FAQ or note */}
-        <div className="text-center text-sm text-muted-foreground">
-          <p>All plans include a 7-day free trial. No credit card required for Free plan.</p>
-          <p className="mt-1">
-            Payments are processed via UPI. Contact support for any billing issues.
-          </p>
-        </div>
+        <p className="text-center text-slate-400 text-sm mt-10">
+          Payments are verified manually within 24 hours. Your plan will be activated after verification.
+        </p>
       </div>
-
-      {/* Profile Setup Dialog */}
-      <Dialog open={showProfileSetup} onOpenChange={(o) => !o && setShowProfileSetup(false)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Set Up Your Profile</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="profileName">Your Name</Label>
-              <Input
-                id="profileName"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Enter your name"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="profileEmail">Email (optional)</Label>
-              <Input
-                id="profileEmail"
-                type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="your@email.com"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowProfileSetup(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleProfileSave} disabled={saveProfile.isPending}>
-              {saveProfile.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save & Continue'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

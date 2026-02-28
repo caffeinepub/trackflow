@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Copy, Users, AlertCircle, Loader2 } from 'lucide-react';
+import { Search, Copy, Users, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,11 +21,11 @@ import {
 } from '@/components/ui/select';
 import { useGetAllUsers, useSetUserPlan } from '@/hooks/useQueries';
 import { Plan } from '@/backend';
-import { toast } from 'sonner';
+import { Principal } from '@dfinity/principal';
 
-const planBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
+const planColors: Record<string, string> = {
   free: 'secondary',
-  starter: 'outline',
+  starter: 'default',
   premium: 'default',
 };
 
@@ -50,6 +50,7 @@ export default function UsersTable() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [pendingPlan, setPendingPlan] = useState<Record<string, Plan>>({});
   const [savingPrincipal, setSavingPrincipal] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<Record<string, string>>({});
 
   const { data: users, isLoading, isError, error } = useGetAllUsers();
   const setUserPlan = useSetUserPlan();
@@ -62,15 +63,24 @@ export default function UsersTable() {
 
   const handlePlanChange = (principal: string, plan: Plan) => {
     setPendingPlan((prev) => ({ ...prev, [principal]: plan }));
+    setSaveError((prev) => {
+      const next = { ...prev };
+      delete next[principal];
+      return next;
+    });
   };
 
   const handlePlanSave = async (principal: string, currentPlan: Plan) => {
     const newPlan = pendingPlan[principal] ?? currentPlan;
     setSavingPrincipal(principal);
-
+    setSaveError((prev) => {
+      const next = { ...prev };
+      delete next[principal];
+      return next;
+    });
     try {
       await setUserPlan.mutateAsync({
-        user: principal, // pass string — hook converts to Principal internally
+        user: Principal.fromText(principal),
         plan: newPlan,
         planExpiry: null,
       });
@@ -79,14 +89,9 @@ export default function UsersTable() {
         delete next[principal];
         return next;
       });
-      toast.success(`Plan updated to ${planLabels[String(newPlan)] ?? String(newPlan)} successfully.`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const friendlyMsg =
-        msg.includes('Unauthorized') || msg.includes('admin')
-          ? 'Admin privileges required. Make sure you are logged in as an admin.'
-          : msg;
-      toast.error(`Failed to save plan: ${friendlyMsg}`);
+      setSaveError((prev) => ({ ...prev, [principal]: msg }));
     } finally {
       setSavingPrincipal(null);
     }
@@ -158,7 +163,7 @@ export default function UsersTable() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Principal</TableHead>
-                  <TableHead>Current Plan</TableHead>
+                  <TableHead>Plan</TableHead>
                   <TableHead>Change Plan</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead>Last Login</TableHead>
@@ -169,10 +174,9 @@ export default function UsersTable() {
                   const principalStr = user.principal.toString();
                   const currentPlan = user.plan as unknown as Plan;
                   const selectedPlan = pendingPlan[principalStr] ?? currentPlan;
-                  const isDirty =
-                    pendingPlan[principalStr] !== undefined &&
-                    pendingPlan[principalStr] !== currentPlan;
+                  const isDirty = pendingPlan[principalStr] !== undefined;
                   const isSaving = savingPrincipal === principalStr;
+                  const rowError = saveError[principalStr];
 
                   return (
                     <TableRow key={principalStr}>
@@ -196,44 +200,44 @@ export default function UsersTable() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={planBadgeVariant[String(currentPlan)] ?? 'secondary'}>
+                        <Badge variant={planColors[String(currentPlan)] as 'default' | 'secondary'}>
                           {planLabels[String(currentPlan)] ?? String(currentPlan)}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Select
-                            value={String(selectedPlan)}
-                            onValueChange={(val) =>
-                              handlePlanChange(principalStr, val as Plan)
-                            }
-                            disabled={isSaving}
-                          >
-                            <SelectTrigger className="w-28 h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="free">Free</SelectItem>
-                              <SelectItem value="starter">Starter</SelectItem>
-                              <SelectItem value="premium">Premium</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            size="sm"
-                            className="h-8 text-xs"
-                            variant={isDirty ? 'default' : 'outline'}
-                            onClick={() => handlePlanSave(principalStr, currentPlan)}
-                            disabled={isSaving}
-                          >
-                            {isSaving ? (
-                              <>
-                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                Saving…
-                              </>
-                            ) : (
-                              'Save'
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={String(selectedPlan)}
+                              onValueChange={(val) =>
+                                handlePlanChange(principalStr, val as Plan)
+                              }
+                            >
+                              <SelectTrigger className="w-28 h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="free">Free</SelectItem>
+                                <SelectItem value="starter">Starter</SelectItem>
+                                <SelectItem value="premium">Premium</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {isDirty && (
+                              <Button
+                                size="sm"
+                                className="h-8 text-xs"
+                                onClick={() => handlePlanSave(principalStr, currentPlan)}
+                                disabled={isSaving}
+                              >
+                                {isSaving ? 'Saving…' : 'Save'}
+                              </Button>
                             )}
-                          </Button>
+                          </div>
+                          {rowError && (
+                            <p className="text-xs text-destructive max-w-[200px] truncate" title={rowError}>
+                              {rowError.includes('Unauthorized') ? 'Admin role required to change plans.' : rowError}
+                            </p>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">

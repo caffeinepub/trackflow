@@ -1,184 +1,252 @@
 import React, { useState, useMemo } from 'react';
+import { useGetHabits, useGetActivities, useGetCallerUserProfile } from '../hooks/useQueries';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetCallerUserProfile, useGetHabits, useGetActivities } from '../hooks/useQueries';
 import { useActor } from '../hooks/useActor';
-import AddActivityForm from '../components/dashboard/AddActivityForm';
-import ActivityTimeline from '../components/dashboard/ActivityTimeline';
 import StatsCard from '../components/dashboard/StatsCard';
+import ActivityTimeline from '../components/dashboard/ActivityTimeline';
+import AddActivityForm from '../components/dashboard/AddActivityForm';
 import HabitProgressBar from '../components/dashboard/HabitProgressBar';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, DollarSign, TrendingUp, Target } from 'lucide-react';
+import type { Activity, Habit } from '../backend';
+import { Clock, DollarSign, Target, TrendingUp, Loader2, AlertCircle, RefreshCw, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+function getStartOfDay(date: Date): number {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime() * 1_000_000;
+}
+
+function getEndOfDay(date: Date): number {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d.getTime() * 1_000_000;
+}
+
+function getStartOfWeek(date: Date): number {
+  const d = new Date(date);
+  const day = d.getDay();
+  d.setDate(d.getDate() - day);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime() * 1_000_000;
+}
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
 
 export default function DashboardPage() {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showAddForm, setShowAddForm] = useState(false);
   const { identity } = useInternetIdentity();
   const { isFetching: actorFetching } = useActor();
-  const userId = identity?.getPrincipal().toString();
 
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
+  const {
+    data: habits = [],
+    isLoading: habitsLoading,
+    isError: habitsError,
+    refetch: refetchHabits,
+  } = useGetHabits();
 
-  const { data: profile, isLoading: profileLoading } = useGetCallerUserProfile();
-  const { data: habits = [], isLoading: habitsLoading } = useGetHabits(userId);
-  const { data: activities = [], isLoading: activitiesLoading } = useGetActivities(userId);
+  const {
+    data: activities = [],
+    isLoading: activitiesLoading,
+    isError: activitiesError,
+    refetch: refetchActivities,
+  } = useGetActivities();
 
-  const isLoading = actorFetching || profileLoading || habitsLoading || activitiesLoading;
+  const {
+    data: userProfile,
+    isLoading: profileLoading,
+  } = useGetCallerUserProfile();
+
+  // Determine overall loading state
+  const isInitializing = actorFetching || !identity;
+  const isLoading = isInitializing || habitsLoading || activitiesLoading || profileLoading;
+  const hasError = habitsError || activitiesError;
 
   // Filter activities for selected date
-  const selectedDateStart = useMemo(() => {
-    const d = new Date(selectedDate);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-  }, [selectedDate]);
-
-  const selectedDateEnd = useMemo(() => {
-    const d = new Date(selectedDate);
-    d.setHours(23, 59, 59, 999);
-    return d.getTime();
-  }, [selectedDate]);
-
   const todayActivities = useMemo(() => {
-    return activities.filter((a) => {
-      const actDate = Number(a.date) / 1_000_000; // nanoseconds to ms
-      return actDate >= selectedDateStart && actDate <= selectedDateEnd;
+    const startOfDay = getStartOfDay(selectedDate);
+    const endOfDay = getEndOfDay(selectedDate);
+    return activities.filter((a: Activity) => {
+      const actDate = Number(a.date);
+      return actDate >= startOfDay && actDate <= endOfDay;
     });
-  }, [activities, selectedDateStart, selectedDateEnd]);
+  }, [activities, selectedDate]);
 
-  // Stats calculations
-  const stats = useMemo(() => {
-    const totalMinutes = todayActivities.reduce((sum, a) => sum + Number(a.duration), 0);
-    const totalHours = totalMinutes / 60;
-    const totalEarnings = todayActivities.reduce((sum, a) => sum + Number(a.earnings), 0);
-    const productiveActivities = todayActivities.filter((a) => a.isProductive);
-    const productivity =
-      todayActivities.length > 0
-        ? Math.round((productiveActivities.length / todayActivities.length) * 100)
-        : 0;
-    return { totalHours, totalEarnings, productivity, activityCount: todayActivities.length };
+  // Filter activities for current week (for weekly habits)
+  const weekActivities = useMemo(() => {
+    const startOfWeek = getStartOfWeek(selectedDate);
+    const endOfDay = getEndOfDay(selectedDate);
+    return activities.filter((a: Activity) => {
+      const actDate = Number(a.date);
+      return actDate >= startOfWeek && actDate <= endOfDay;
+    });
+  }, [activities, selectedDate]);
+
+  // Compute stats
+  const totalMinutesToday = useMemo(() => {
+    return todayActivities.reduce((sum: number, a: Activity) => sum + Number(a.duration), 0);
   }, [todayActivities]);
 
-  if (!userId) {
+  const totalEarningsToday = useMemo(() => {
+    return todayActivities.reduce((sum: number, a: Activity) => sum + Number(a.earnings), 0);
+  }, [todayActivities]);
+
+  const productiveMinutes = useMemo(() => {
+    return todayActivities
+      .filter((a: Activity) => a.isProductive)
+      .reduce((sum: number, a: Activity) => sum + Number(a.duration), 0);
+  }, [todayActivities]);
+
+  const activeHabits = useMemo(() => {
+    return habits.filter((h: Habit) => h.isActive).length;
+  }, [habits]);
+
+  const handleRefetch = () => {
+    refetchHabits();
+    refetchActivities();
+  };
+
+  // Show loading state while actor is initializing or queries are loading
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Please log in to view your dashboard.</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-muted-foreground text-sm">
+          {isInitializing ? 'Connecting to the network...' : 'Loading your dashboard...'}
+        </p>
       </div>
     );
   }
 
+  // Show error state
+  if (hasError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <p className="text-foreground font-medium">Failed to load dashboard data</p>
+        <p className="text-muted-foreground text-sm">Please check your connection and try again.</p>
+        <Button onClick={handleRefetch} variant="outline" className="gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  const dateStr = selectedDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {profileLoading ? (
-              <Skeleton className="h-8 w-48" />
-            ) : (
-              `Welcome back, ${profile?.name || 'User'}!`
-            )}
+            Welcome back{userProfile?.name ? `, ${userProfile.name}` : ''}!
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Track your habits and productivity</p>
+          <p className="text-muted-foreground text-sm mt-1">{dateStr}</p>
         </div>
-        <div>
+        <div className="flex items-center gap-2">
           <input
             type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            value={selectedDate.toISOString().split('T')[0]}
+            onChange={(e) => {
+              const d = new Date(e.target.value + 'T00:00:00');
+              if (!isNaN(d.getTime())) setSelectedDate(d);
+            }}
             className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
+          <Button
+            onClick={() => setShowAddForm((v) => !v)}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {showAddForm ? 'Cancel' : 'Add Activity'}
+          </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {isLoading ? (
-          <>
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-xl" />
-            ))}
-          </>
-        ) : (
-          <>
-            <StatsCard
-              label="Hours Tracked"
-              value={`${stats.totalHours.toFixed(1)}h`}
-              icon={<Clock className="w-5 h-5" />}
-              color="blue"
-            />
-            <StatsCard
-              label="Earnings"
-              value={`₹${stats.totalEarnings.toLocaleString()}`}
-              icon={<DollarSign className="w-5 h-5" />}
-              color="green"
-            />
-            <StatsCard
-              label="Productivity"
-              value={`${stats.productivity}%`}
-              icon={<TrendingUp className="w-5 h-5" />}
-              color="purple"
-            />
-            <StatsCard
-              label="Activities"
-              value={`${stats.activityCount}`}
-              icon={<Target className="w-5 h-5" />}
-              color="orange"
-            />
-          </>
-        )}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          label="Time Tracked"
+          value={formatDuration(totalMinutesToday)}
+          icon={<Clock className="h-5 w-5" />}
+          color="blue"
+        />
+        <StatsCard
+          label="Earnings"
+          value={`₹${totalEarningsToday.toLocaleString()}`}
+          icon={<DollarSign className="h-5 w-5" />}
+          color="green"
+        />
+        <StatsCard
+          label="Productive"
+          value={formatDuration(productiveMinutes)}
+          icon={<TrendingUp className="h-5 w-5" />}
+          color="purple"
+        />
+        <StatsCard
+          label="Active Habits"
+          value={String(activeHabits)}
+          icon={<Target className="h-5 w-5" />}
+          color="orange"
+        />
       </div>
+
+      {/* Add Activity Form (toggled) */}
+      {showAddForm && (
+        <AddActivityForm
+          habits={habits}
+          selectedDate={selectedDate}
+          onSuccess={() => setShowAddForm(false)}
+        />
+      )}
 
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Add Activity + Timeline */}
-        <div className="lg:col-span-2 space-y-6">
-          {actorFetching ? (
-            <Skeleton className="h-64 rounded-xl" />
-          ) : (
-            <AddActivityForm
-              habits={habits}
-              userId={userId}
-              selectedDate={selectedDate}
-            />
-          )}
-
-          {activitiesLoading ? (
-            <div className="space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <Skeleton key={i} className="h-20 rounded-xl" />
-              ))}
-            </div>
-          ) : (
-            <ActivityTimeline
-              activities={todayActivities}
-              habits={habits}
-              selectedDate={selectedDate}
-            />
-          )}
+        {/* Left: Activity Timeline */}
+        <div className="lg:col-span-2">
+          <ActivityTimeline
+            activities={todayActivities}
+            habits={habits}
+          />
         </div>
 
         {/* Right: Habit Progress */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">Habit Progress</h2>
-          {habitsLoading ? (
-            <div className="space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <Skeleton key={i} className="h-16 rounded-xl" />
-              ))}
-            </div>
-          ) : habits.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              <Target className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p>No habits yet. Create one to get started!</p>
+          {habits.filter((h: Habit) => h.isActive).length === 0 ? (
+            <div className="rounded-xl border border-border bg-card p-6 text-center">
+              <Target className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm">No active habits yet.</p>
+              <p className="text-muted-foreground text-xs mt-1">Go to Habits to create your first habit!</p>
             </div>
           ) : (
-            habits.map((habit) => (
-              <HabitProgressBar
-                key={habit.id.toString()}
-                habit={habit}
-                activities={activities}
-                selectedDate={selectedDate}
-              />
-            ))
+            habits
+              .filter((h: Habit) => h.isActive)
+              .map((habit: Habit) => {
+                const relevantActivities = habit.goalType === 'daily' ? todayActivities : weekActivities;
+                const habitActivities = relevantActivities.filter(
+                  (a: Activity) => a.habitId === habit.id
+                );
+                return (
+                  <HabitProgressBar
+                    key={String(habit.id)}
+                    habit={habit}
+                    activities={habitActivities}
+                  />
+                );
+              })
           )}
         </div>
       </div>

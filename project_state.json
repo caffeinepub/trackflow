@@ -1,98 +1,44 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Web app (likely ICP/Internet Computer canister-based) with pricing, dashboard, and habits features. Multiple fixes needed: pricing page buttons non-functional, dashboard has 'actor not available' error with activity logging broken and data not loading, habits page can't save new habits. Admin system being added for app owner.",
+  "summary": "Habit tracker app with Internet Identity login, dashboard, add/edit/delete habits, daily/weekly frequency, streak tracking, and clean modern UI. Currently fixing dashboard data loading issue.",
   "architectural_notes": [
-    "Backend uses Internet Computer (ICP) canisters for data persistence",
-    "Authentication is handled via Internet Identity principals",
-    "Admin role will be tied to owner's Internet Identity principal"
+    "Uses Internet Identity for authentication",
+    "Built with Tailwind CSS for styling"
   ],
   "known_issues": [
-    "'Actor not available' error on dashboard during login — backend canister connectivity issue",
-    "Dashboard data not loading",
-    "Activity logging broken on dashboard",
-    "Habit creation fails — data cannot be saved to backend canister",
-    "All pricing page buttons are non-functional"
+    "Dashboard cannot load data - habits and streaks not displaying"
   ],
   "isFixRequest": true,
   "existing_features": [
     {
-      "id": "feature-fix-the-actor-not-available-error-on-the-dashboard-and-throughout-the-app-ensure-the-backend-actor-is-properly-initialized-and-available-before-any-queries-or-mutations-are-executed-add-defensive-checks-so-that-queries-dependent-on-the-actor-do-not-fire-until-the-actor-is-ready-and-display-appropriate-loading-states-instead-of-errors",
-      "title": "Fix the 'actor not available' error on the dashboard and throughout the app. Ensure the backend actor is properly initialized and available before any queries or mutations are executed. Add defensive checks so that queries dependent on the actor do not fire until the actor is ready, and display appropriate loading states instead of errors.",
+      "id": "feature-fix-the-dashboard-page-so-that-habit-progress-bars-today-s-stats-cards-and-activity-timeline-all-load-and-display-data-correctly-without-remaining-blank-or-failing-to-fetch",
+      "title": "Fix the dashboard page so that habit progress bars, today's stats cards, and activity timeline all load and display data correctly without remaining blank or failing to fetch.",
       "reqIds": [
         "REQ-1"
       ],
       "version": 1
     },
     {
-      "id": "feature-fix-dashboard-data-not-loading-ensure-that-all-dashboard-data-stats-today-s-activities-habit-progress-bars-is-fetched-and-rendered-correctly-after-the-actor-becomes-available-fix-any-query-keys-stale-data-or-missing-invalidation-that-prevents-data-from-appearing-on-the-dashboardpage",
-      "title": "Fix dashboard data not loading. Ensure that all dashboard data (stats, today's activities, habit progress bars) is fetched and rendered correctly after the actor becomes available. Fix any query keys, stale data, or missing invalidation that prevents data from appearing on the DashboardPage.",
+      "id": "feature-ensure-the-react-query-hooks-used-by-dashboardpage-habits-query-activities-query-user-profile-query-correctly-call-the-backend-actor-and-handle-loading-error-states-gracefully-showing-a-spinner-or-fallback-ui-instead-of-a-blank-screen-while-data-is-being-fetched",
+      "title": "Ensure the React Query hooks used by DashboardPage (habits query, activities query, user profile query) correctly call the backend actor and handle loading/error states gracefully, showing a spinner or fallback UI instead of a blank screen while data is being fetched.",
       "reqIds": [
         "REQ-2"
       ],
       "version": 1
     },
     {
-      "id": "feature-fix-habit-creation-on-the-habitspage-so-that-new-habits-are-saved-to-the-backend-canister-ensure-the-createhabit-mutation-in-usequeries-ts-is-correctly-calling-the-backend-actor-method-handling-errors-gracefully-and-invalidating-the-habits-query-cache-on-success-so-the-new-habit-appears-immediately",
-      "title": "Fix habit creation on the HabitsPage so that new habits are saved to the backend canister. Ensure the createHabit mutation in useQueries.ts is correctly calling the backend actor method, handling errors gracefully, and invalidating the habits query cache on success so the new habit appears immediately.",
+      "id": "feature-verify-and-fix-the-useactor-hook-integration-in-the-dashboard-context-so-the-actor-is-fully-initialized-before-any-dashboard-queries-execute-preventing-null-undefined-actor-calls-that-silently-return-no-data",
+      "title": "Verify and fix the useActor hook integration in the dashboard context so the actor is fully initialized before any dashboard queries execute, preventing null/undefined actor calls that silently return no data.",
       "reqIds": [
         "REQ-3"
       ],
       "version": 1
-    },
-    {
-      "id": "feature-wire-up-all-buttons-on-the-pricingpage-so-they-are-fully-functional-plan-selection-buttons-should-navigate-authenticated-users-to-the-paymentpage-with-the-selected-plan-as-a-parameter-and-prompt-unauthenticated-users-to-log-in-ensure-ctas-and-any-other-buttons-on-the-page-perform-their-intended-actions-without-errors",
-      "title": "Wire up all buttons on the PricingPage so they are fully functional. Plan selection buttons should navigate authenticated users to the PaymentPage with the selected plan as a parameter, and prompt unauthenticated users to log in. Ensure CTAs and any other buttons on the page perform their intended actions without errors.",
-      "reqIds": [
-        "REQ-4"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-add-frontend-admin-access-control-in-usequeries-ts-expose-an-isadmin-query-that-checks-if-the-current-user-is-admin-via-the-backend-in-the-sidebar-show-admin-navigation-links-only-when-isadmin-is-true-protect-the-adminpage-route-so-non-admin-users-are-redirected-to-the-dashboard-remove-or-supplement-the-existing-session-storage-password-gate-on-adminpage-with-the-principal-based-admin-check",
-      "title": "Add frontend admin access control. In useQueries.ts, expose an isAdmin query that checks if the current user is admin via the backend. In the Sidebar, show admin navigation links only when isAdmin is true. Protect the AdminPage route so non-admin users are redirected to the dashboard. Remove or supplement the existing session-storage password gate on AdminPage with the principal-based admin check.",
-      "reqIds": [
-        "REQ-6"
-      ],
-      "version": 1
     }
   ],
-  "new_feature_requests": [
-    {
-      "id": "AR-1",
-      "summary": "Fix all pricing page buttons to be functional",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-2",
-      "summary": "Fix dashboard 'actor not available' error so activity logging works and data loads correctly",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-3",
-      "summary": "Fix habits page so new habits can be created and saved to backend canister",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-4",
-      "summary": "Add admin system tied to owner's Internet Identity principal with protected admin-only routes and user management",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-9",
-      "summary": "Add an admin system to the backend. Store an admin principal list in the canister state. Hardcode the app owner's Internet Identity principal as the initial admin. Expose backend functions: isAdmin(caller) returning Bool, getAdminPrincipal() returning the admin principal, and any admin-only functions (getAllUsers, getPlatformStats, approvePayment, rejectPayment, manageCoupons) gated behind an admin check that traps or returns an error for non-admin callers.",
-      "reqIds": [
-        "REQ-5"
-      ],
-      "status": "pending"
-    }
-  ],
+  "new_feature_requests": [],
   "gameProjectType": "none",
-  "projectName": "TrackFlow",
+  "projectName": "Habit Tracker",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

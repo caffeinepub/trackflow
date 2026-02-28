@@ -1,172 +1,185 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetCallerUserProfile, useGetActivities, useGetHabits } from '../hooks/useQueries';
-import { Activity, Habit } from '../backend';
-import { Clock, DollarSign, TrendingUp, Target, Plus, Calendar } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import StatsCard from '../components/dashboard/StatsCard';
+import { useGetCallerUserProfile, useGetHabits, useGetActivities } from '../hooks/useQueries';
+import { useActor } from '../hooks/useActor';
 import AddActivityForm from '../components/dashboard/AddActivityForm';
 import ActivityTimeline from '../components/dashboard/ActivityTimeline';
+import StatsCard from '../components/dashboard/StatsCard';
 import HabitProgressBar from '../components/dashboard/HabitProgressBar';
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function isSameDay(ts: bigint, date: Date): boolean {
-  const d = new Date(Number(ts) / 1_000_000);
-  return d.getFullYear() === date.getFullYear() &&
-    d.getMonth() === date.getMonth() &&
-    d.getDate() === date.getDate();
-}
+import { Skeleton } from '@/components/ui/skeleton';
+import { Clock, DollarSign, TrendingUp, Target } from 'lucide-react';
 
 export default function DashboardPage() {
   const { identity } = useInternetIdentity();
-  const { data: userProfile } = useGetCallerUserProfile();
-  const { data: activities = [], isLoading: activitiesLoading } = useGetActivities();
-  const { data: habits = [], isLoading: habitsLoading } = useGetHabits();
+  const { isFetching: actorFetching } = useActor();
+  const userId = identity?.getPrincipal().toString();
 
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showAddForm, setShowAddForm] = useState(false);
-
-  const todayActivities = useMemo(() =>
-    activities.filter(a => isSameDay(a.date, selectedDate)),
-    [activities, selectedDate]
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
   );
 
+  const { data: profile, isLoading: profileLoading } = useGetCallerUserProfile();
+  const { data: habits = [], isLoading: habitsLoading } = useGetHabits(userId);
+  const { data: activities = [], isLoading: activitiesLoading } = useGetActivities(userId);
+
+  const isLoading = actorFetching || profileLoading || habitsLoading || activitiesLoading;
+
+  // Filter activities for selected date
+  const selectedDateStart = useMemo(() => {
+    const d = new Date(selectedDate);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, [selectedDate]);
+
+  const selectedDateEnd = useMemo(() => {
+    const d = new Date(selectedDate);
+    d.setHours(23, 59, 59, 999);
+    return d.getTime();
+  }, [selectedDate]);
+
+  const todayActivities = useMemo(() => {
+    return activities.filter((a) => {
+      const actDate = Number(a.date) / 1_000_000; // nanoseconds to ms
+      return actDate >= selectedDateStart && actDate <= selectedDateEnd;
+    });
+  }, [activities, selectedDateStart, selectedDateEnd]);
+
+  // Stats calculations
   const stats = useMemo(() => {
     const totalMinutes = todayActivities.reduce((sum, a) => sum + Number(a.duration), 0);
     const totalHours = totalMinutes / 60;
     const totalEarnings = todayActivities.reduce((sum, a) => sum + Number(a.earnings), 0);
-    const productiveMinutes = todayActivities
-      .filter(a => a.isProductive)
-      .reduce((sum, a) => sum + Number(a.duration), 0);
-    const productiveHours = productiveMinutes / 60;
+    const productiveActivities = todayActivities.filter((a) => a.isProductive);
+    const productivity =
+      todayActivities.length > 0
+        ? Math.round((productiveActivities.length / todayActivities.length) * 100)
+        : 0;
+    return { totalHours, totalEarnings, productivity, activityCount: todayActivities.length };
+  }, [todayActivities]);
 
-    // Most active habit
-    const habitCounts: Record<string, number> = {};
-    todayActivities.forEach(a => {
-      if (a.habitId > 0) {
-        const key = String(a.habitId);
-        habitCounts[key] = (habitCounts[key] || 0) + Number(a.duration);
-      }
-    });
-    const topHabitId = Object.entries(habitCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
-    const topHabit = habits.find(h => String(h.id) === topHabitId);
-
-    return { totalHours, totalEarnings, productiveHours, topHabit };
-  }, [todayActivities, habits]);
-
-  const isLoading = activitiesLoading || habitsLoading;
+  if (!userId) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Please log in to view your dashboard.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'},{' '}
-            {userProfile?.name?.split(' ')[0] || 'there'} 👋
+          <h1 className="text-2xl font-bold text-foreground">
+            {profileLoading ? (
+              <Skeleton className="h-8 w-48" />
+            ) : (
+              `Welcome back, ${profile?.name || 'User'}!`
+            )}
           </h1>
-          <p className="text-slate-500 text-sm mt-0.5">{formatDate(selectedDate)}</p>
+          <p className="text-muted-foreground text-sm mt-1">Track your habits and productivity</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div>
           <input
             type="date"
-            value={selectedDate.toISOString().split('T')[0]}
-            onChange={(e) => setSelectedDate(new Date(e.target.value))}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
-          <Button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-indigo-600 hover:bg-indigo-700 gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add Activity
-          </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      {isLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-2xl" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatsCard
-            label="Total Hours Today"
-            value={`${stats.totalHours.toFixed(1)}h`}
-            icon={Clock}
-            color="indigo"
-          />
-          <StatsCard
-            label="Total Earnings"
-            value={`₹${stats.totalEarnings.toLocaleString('en-IN')}`}
-            icon={DollarSign}
-            color="emerald"
-          />
-          <StatsCard
-            label="Productive Hours"
-            value={`${stats.productiveHours.toFixed(1)}h`}
-            icon={TrendingUp}
-            color="amber"
-          />
-          <StatsCard
-            label="Most Active Habit"
-            value={stats.topHabit?.name || '—'}
-            icon={Target}
-            color="purple"
-          />
-        </div>
-      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {isLoading ? (
+          <>
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-28 rounded-xl" />
+            ))}
+          </>
+        ) : (
+          <>
+            <StatsCard
+              label="Hours Tracked"
+              value={`${stats.totalHours.toFixed(1)}h`}
+              icon={<Clock className="w-5 h-5" />}
+              color="blue"
+            />
+            <StatsCard
+              label="Earnings"
+              value={`₹${stats.totalEarnings.toLocaleString()}`}
+              icon={<DollarSign className="w-5 h-5" />}
+              color="green"
+            />
+            <StatsCard
+              label="Productivity"
+              value={`${stats.productivity}%`}
+              icon={<TrendingUp className="w-5 h-5" />}
+              color="purple"
+            />
+            <StatsCard
+              label="Activities"
+              value={`${stats.activityCount}`}
+              icon={<Target className="w-5 h-5" />}
+              color="orange"
+            />
+          </>
+        )}
+      </div>
 
-      {/* Add Activity Form */}
-      {showAddForm && (
-        <AddActivityForm
-          habits={habits}
-          selectedDate={selectedDate}
-          onSuccess={() => setShowAddForm(false)}
-        />
-      )}
-
+      {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Timeline */}
-        <div className="lg:col-span-2">
-          <ActivityTimeline
-            activities={todayActivities}
-            habits={habits}
-            isLoading={activitiesLoading}
-          />
+        {/* Left: Add Activity + Timeline */}
+        <div className="lg:col-span-2 space-y-6">
+          {actorFetching ? (
+            <Skeleton className="h-64 rounded-xl" />
+          ) : (
+            <AddActivityForm
+              habits={habits}
+              userId={userId}
+              selectedDate={selectedDate}
+            />
+          )}
+
+          {activitiesLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-20 rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <ActivityTimeline
+              activities={todayActivities}
+              habits={habits}
+              selectedDate={selectedDate}
+            />
+          )}
         </div>
 
-        {/* Habit Progress */}
-        <div>
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-slate-800">Habit Progress</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {habitsLoading ? (
-                [...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)
-              ) : habits.length === 0 ? (
-                <p className="text-slate-400 text-sm text-center py-4">No habits yet. Add some!</p>
-              ) : (
-                habits.filter(h => h.isActive).map(habit => (
-                  <HabitProgressBar
-                    key={String(habit.id)}
-                    habit={habit}
-                    activities={activities}
-                    selectedDate={selectedDate}
-                  />
-                ))
-              )}
-            </CardContent>
-          </Card>
+        {/* Right: Habit Progress */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">Habit Progress</h2>
+          {habitsLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-16 rounded-xl" />
+              ))}
+            </div>
+          ) : habits.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              <Target className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              <p>No habits yet. Create one to get started!</p>
+            </div>
+          ) : (
+            habits.map((habit) => (
+              <HabitProgressBar
+                key={habit.id.toString()}
+                habit={habit}
+                activities={activities}
+                selectedDate={selectedDate}
+              />
+            ))
+          )}
         </div>
       </div>
     </div>

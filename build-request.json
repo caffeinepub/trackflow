@@ -1,39 +1,141 @@
 {
   "kind": "build_request",
-  "title": "Fix non-responsive buttons on /pricing page",
+  "title": "Fix dashboard data loading, actor availability, habits saving, pricing buttons, and add admin system",
   "projectName": "TrackFlow",
-  "priority": "normal",
+  "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Fix all non-responsive button click handlers on the /pricing page (PricingPage.tsx) so that plan selection buttons, profile setup actions, and navigation-to-payment buttons all respond correctly to user interaction.",
-      "target": "frontend",
+      "text": "Fix the 'actor not available' error on the dashboard and throughout the app. Ensure the backend actor is properly initialized and available before any queries or mutations are executed. Add defensive checks so that queries dependent on the actor do not fire until the actor is ready, and display appropriate loading states instead of errors.",
+      "target": "both",
       "source": {
         "messageIds": [
           "msg-4",
-          "msg-6"
+          "msg-10"
         ],
         "quotes": [
-          "page is fully loaded but there buttons are not working",
-          "the /pricing page loads fine visually, but the buttons on the page aren't responding when clicked"
+          "on the dashboard pages I can access and re-edit but I can't log activity",
+          "Fix the 'actor not available' error so activity logging works correctly"
         ]
       },
       "acceptanceCriteria": [
-        "Clicking a plan tier button on /pricing triggers the expected action (profile setup flow or navigation to payment page) without errors.",
-        "All interactive buttons on /pricing are visually clickable and respond on click.",
-        "No console errors are thrown when interacting with any button on the /pricing page.",
-        "Navigation to the payment flow from /pricing works correctly after clicking a paid plan button."
+        "No 'actor not available' error appears on the dashboard after login",
+        "All React Query hooks in useQueries.ts gate execution on actor availability (enabled flag)",
+        "Loading spinners or skeletons are shown while the actor is initializing",
+        "Activity logging on the dashboard works successfully after login"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Fix dashboard data not loading. Ensure that all dashboard data (stats, today's activities, habit progress bars) is fetched and rendered correctly after the actor becomes available. Fix any query keys, stale data, or missing invalidation that prevents data from appearing on the DashboardPage.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-10"
+        ],
+        "quotes": [
+          "one more thing in dashboard data isn't loading so fix it too"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Dashboard stats (hours, earnings, productivity) load and display correctly",
+        "Today's activity timeline renders fetched activities",
+        "Habit progress bars display current progress from fetched data",
+        "Data refreshes correctly when the user logs a new activity or changes the date filter"
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Fix habit creation on the HabitsPage so that new habits are saved to the backend canister. Ensure the createHabit mutation in useQueries.ts is correctly calling the backend actor method, handling errors gracefully, and invalidating the habits query cache on success so the new habit appears immediately.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "in habits I can't create any habit because it can't save anything"
+        ]
+      },
+      "acceptanceCriteria": [
+        "A new habit submitted via HabitFormModal is saved to the backend canister",
+        "The habits list updates immediately after a successful save",
+        "An error toast is shown if saving fails",
+        "The habit form modal closes after a successful save"
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Wire up all buttons on the PricingPage so they are fully functional. Plan selection buttons should navigate authenticated users to the PaymentPage with the selected plan as a parameter, and prompt unauthenticated users to log in. Ensure CTAs and any other buttons on the page perform their intended actions without errors.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "Go in the pricing page, every button isn't working"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Clicking a plan button on PricingPage navigates to PaymentPage with the correct plan selected",
+        "Unauthenticated users are redirected to LoginPage when clicking a plan button",
+        "No console errors occur when any pricing page button is clicked",
+        "All CTA buttons on the pricing page respond to click events"
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "text": "Add an admin system to the backend. Store an admin principal list in the canister state. Hardcode the app owner's Internet Identity principal as the initial admin. Expose backend functions: isAdmin(caller) returning Bool, getAdminPrincipal() returning the admin principal, and any admin-only functions (getAllUsers, getPlatformStats, approvePayment, rejectPayment, manageCoupons) gated behind an admin check that traps or returns an error for non-admin callers.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-7",
+          "msg-8",
+          "msg-9"
+        ],
+        "quotes": [
+          "im the owner add an admin setup",
+          "Set up an admin role tied to your Internet Identity principal"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Backend has an admin principals list initialized with the owner's principal",
+        "isAdmin query returns true only for the designated admin principal",
+        "All admin-only backend functions reject calls from non-admin principals",
+        "Admin functions for user management, stats, payments, and coupons are protected"
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "text": "Add frontend admin access control. In useQueries.ts, expose an isAdmin query that checks if the current user is admin via the backend. In the Sidebar, show admin navigation links only when isAdmin is true. Protect the AdminPage route so non-admin users are redirected to the dashboard. Remove or supplement the existing session-storage password gate on AdminPage with the principal-based admin check.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-7",
+          "msg-8",
+          "msg-9"
+        ],
+        "quotes": [
+          "protected admin-only routes and the ability to manage users, view all data, and access restricted dashboard features"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Admin navigation links in the Sidebar are visible only to the admin user",
+        "Non-admin users who navigate to /admin are redirected to /dashboard",
+        "AdminPage loads correctly for the admin user without the password gate blocking them",
+        "isAdmin state is derived from the backend principal check, not hardcoded on the frontend"
       ]
     }
   ],
   "constraints": [
-    "Do not alter the visual layout or design of the /pricing page.",
-    "Do not modify any files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui."
+    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
+    "All Motoko logic must remain in the single backend/main.mo actor file",
+    "Admin principal must be set via a real Internet Identity principal — do not use a placeholder"
   ],
   "nonGoals": [
-    "Changes to any page other than /pricing.",
-    "Backend logic or data model changes.",
-    "Modifying the pricing tiers, plan names, or pricing amounts."
+    "Adding a separate admin backend service or microservice",
+    "Implementing third-party payment processing",
+    "Real-time data updates via WebSockets",
+    "Multi-admin role management beyond owner-level admin"
   ],
   "imageRequirements": {
     "required": [],

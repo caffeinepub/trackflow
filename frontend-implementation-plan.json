@@ -1,22 +1,145 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix non-responsive buttons on /pricing page",
+  "title": "Fix dashboard data loading, actor availability, habits saving, pricing buttons, and add admin system",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Fix all non-responsive button click handlers on the /pricing page so that plan selection buttons, profile setup actions, and navigation-to-payment buttons all respond correctly to user interaction",
+      "summary": "Fix the 'actor not available' error on the dashboard and throughout the app by gating all React Query hooks on actor availability and displaying loading states",
       "acceptanceCriteria": [
-        "Clicking a plan tier button on /pricing triggers the expected action (profile setup flow or navigation to payment page) without errors.",
-        "All interactive buttons on /pricing are visually clickable and respond on click.",
-        "No console errors are thrown when interacting with any button on the /pricing page.",
-        "Navigation to the payment flow from /pricing works correctly after clicking a paid plan button."
+        "No 'actor not available' error appears on the dashboard after login",
+        "All React Query hooks in useQueries.ts gate execution on actor availability (enabled flag)",
+        "Loading spinners or skeletons are shown while the actor is initializing",
+        "Activity logging on the dashboard works successfully after login"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add actor availability gating to all React Query hooks by checking `!!actor && !isFetching` in the enabled flag for every query. Add loading state handling that properly reflects actor initialization status in custom return objects, similar to the authorization component's useGetCallerUserProfile pattern. Ensure mutations do not execute until actor is ready by adding defensive checks."
+        },
+        {
+          "path": "frontend/src/pages/DashboardPage.tsx",
+          "operation": "modify",
+          "description": "Add loading spinners or skeleton components that display while the actor is initializing. Check actorFetching state before rendering data-dependent components. Ensure the AddActivityForm and ActivityTimeline components are not rendered until actor is available."
+        },
+        {
+          "path": "frontend/src/components/dashboard/AddActivityForm.tsx",
+          "operation": "modify",
+          "description": "Add actor availability check before allowing form submission. Display a disabled state or loading indicator if actor is not ready. Show appropriate error messaging if activity logging fails due to actor unavailability."
+        },
+        {
+          "path": "frontend/src/components/dashboard/ActivityTimeline.tsx",
+          "operation": "modify",
+          "description": "Add loading state handling that waits for actor availability before fetching activities. Display a skeleton loader or spinner while actor is initializing or activities are loading."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "Fix dashboard data not loading by ensuring all dashboard data (stats, today's activities, habit progress bars) is fetched and rendered correctly after the actor becomes available",
+      "acceptanceCriteria": [
+        "Dashboard stats (hours, earnings, productivity) load and display correctly",
+        "Today's activity timeline renders fetched activities",
+        "Habit progress bars display current progress from fetched data",
+        "Data refreshes correctly when the user logs a new activity or changes the date filter"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Review and fix query keys for activities and habits queries to ensure proper caching and invalidation. Ensure useGetActivities includes proper dependency on userId, habitId filter, and isProductive filter. Add query invalidation for 'activities' and 'habits' keys after successful logActivity mutation. Verify that all queries have proper refetch and staleTime configurations."
+        },
+        {
+          "path": "frontend/src/pages/DashboardPage.tsx",
+          "operation": "modify",
+          "description": "Fix data fetching logic to properly derive stats from activities query results. Ensure selectedDate state changes trigger refetch of activities. Add error boundaries and fallback UI for failed queries. Verify that habit progress calculations use the correct filtered activities data."
+        },
+        {
+          "path": "frontend/src/components/dashboard/StatsCard.tsx",
+          "operation": "modify",
+          "description": "Ensure the component properly handles loading and error states. Add null/undefined checks for stat values before rendering."
+        },
+        {
+          "path": "frontend/src/components/dashboard/HabitProgressBar.tsx",
+          "operation": "modify",
+          "description": "Fix the progress calculation logic to correctly filter activities by habit, date range, and productivity. Ensure the component updates when activities data changes. Add loading and error states."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Fix habit creation on the HabitsPage so that new habits are saved to the backend and appear immediately in the habits list",
+      "acceptanceCriteria": [
+        "A new habit submitted via HabitFormModal is saved to the backend canister",
+        "The habits list updates immediately after a successful save",
+        "An error toast is shown if saving fails",
+        "The habit form modal closes after a successful save"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Review useCreateHabit mutation to ensure it correctly calls actor.createHabit with all required parameters (name, goalType, goalValue, color). Add proper error handling and ensure onSuccess callback invalidates the 'habits' query key to trigger refetch. Verify the mutation is not attempting to execute before actor is available."
+        },
+        {
+          "path": "frontend/src/components/habits/HabitFormModal.tsx",
+          "operation": "modify",
+          "description": "Fix form submission handler to properly call the createHabit mutation with validated form data. Ensure the modal closes only after successful mutation (in onSuccess callback). Add loading state during mutation execution. Display error toast on mutation failure. Verify all required fields (name, goalType, goalValue, color) are included in the mutation call."
+        },
+        {
+          "path": "frontend/src/pages/HabitsPage.tsx",
+          "operation": "modify",
+          "description": "Ensure the habits list properly reacts to query invalidation after habit creation. Add loading state while habits are being fetched. Handle empty state when no habits exist. Verify the habit creation flow triggers query refetch."
+        }
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "summary": "Wire up all buttons on the PricingPage so plan selection navigates authenticated users to PaymentPage and prompts unauthenticated users to log in",
+      "acceptanceCriteria": [
+        "Clicking a plan button on PricingPage navigates to PaymentPage with the correct plan selected",
+        "Unauthenticated users are redirected to LoginPage when clicking a plan button",
+        "No console errors occur when any pricing page button is clicked",
+        "All CTA buttons on the pricing page respond to click events"
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/PricingPage.tsx",
           "operation": "modify",
-          "description": "Implement missing button click handlers: add handleSelectPlan to store selected plan in state and trigger profile setup modal for new users or navigate directly to payment for existing users; implement handleSetupProfile to call saveCallerUserProfile mutation with form data and then navigate to payment; implement handleProceedToPayment using TanStack Router's useNavigate hook to navigate to /payment with selected plan and cycle as URL parameters; ensure all button onClick handlers are properly bound to these functions; add proper error handling and loading states for all async operations; ensure the profile setup modal conditional logic (showProfileSetup) correctly evaluates based on authentication state and profile fetch status to prevent premature rendering."
+          "description": "Wire up all plan selection buttons to check authentication state using useInternetIdentity hook. If authenticated, navigate to /payment with plan parameter using router navigation. If not authenticated, redirect to /login using router navigation. Remove any placeholder or non-functional button handlers. Ensure all CTA buttons have working onClick handlers. Add URL parameter handling to pass selected plan to the payment page."
+        }
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "summary": "Add frontend admin access control by exposing an isAdmin query, showing admin navigation links only for admins, and protecting the AdminPage route with principal-based checks",
+      "acceptanceCriteria": [
+        "Admin navigation links in the Sidebar are visible only to the admin user",
+        "Non-admin users who navigate to /admin are redirected to /dashboard",
+        "AdminPage loads correctly for the admin user without the password gate blocking them",
+        "isAdmin state is derived from the backend principal check, not hardcoded on the frontend"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add a new useIsAdmin query hook that calls actor.isCallerAdmin() to check if the current user is an admin. Gate the query on actor availability using the enabled flag pattern (!!actor && !isFetching). Return proper loading state that reflects actor initialization. Use the authorization component's pattern for consistent state handling."
+        },
+        {
+          "path": "frontend/src/components/layout/Sidebar.tsx",
+          "operation": "modify",
+          "description": "Import and use the useIsAdmin hook to conditionally render the admin navigation link. Only show the admin link when isAdmin returns true. Add loading state handling to avoid flickering during admin check. Ensure the admin link is hidden for non-admin users."
+        },
+        {
+          "path": "frontend/src/pages/AdminPage.tsx",
+          "operation": "modify",
+          "description": "Add principal-based admin protection using the useIsAdmin hook. If isAdmin is false and not loading, redirect to /dashboard using router navigation. Remove or supplement the existing session-storage password gate with the principal-based check, giving priority to the backend admin check. Show a loading spinner while the admin check is in progress. Only render the admin panel content after confirming the user is an admin."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Add route-level admin protection for the /admin route by wrapping it in a guard that checks isAdmin status. Redirect non-admin users attempting to access /admin to /dashboard. Ensure the route guard respects loading states and does not redirect prematurely."
         }
       ]
     }

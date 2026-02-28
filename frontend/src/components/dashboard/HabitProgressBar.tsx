@@ -1,79 +1,78 @@
-import { useMemo } from 'react';
-import { Habit, Activity } from '../../backend';
+import React, { useMemo } from 'react';
+import type { Habit, Activity } from '../../backend';
+import { HabitGoal } from '../../backend';
+import { Progress } from '@/components/ui/progress';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface HabitProgressBarProps {
   habit: Habit;
   activities: Activity[];
-  selectedDate: Date;
-}
-
-function isSameDay(ts: bigint, date: Date): boolean {
-  const d = new Date(Number(ts) / 1_000_000);
-  return (
-    d.getFullYear() === date.getFullYear() &&
-    d.getMonth() === date.getMonth() &&
-    d.getDate() === date.getDate()
-  );
-}
-
-function isSameWeek(ts: bigint, date: Date): boolean {
-  const d = new Date(Number(ts) / 1_000_000);
-  const startOfWeek = new Date(date);
-  startOfWeek.setDate(date.getDate() - date.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 7);
-  return d >= startOfWeek && d < endOfWeek;
+  selectedDate: string;
 }
 
 export default function HabitProgressBar({ habit, activities, selectedDate }: HabitProgressBarProps) {
-  const { currentMinutes, goalMinutes, percentage } = useMemo(() => {
-    const isDaily = habit.goalType === 'daily';
-    const relevant = activities.filter(a => {
-      if (String(a.habitId) !== String(habit.id)) return false;
-      return isDaily ? isSameDay(a.date, selectedDate) : isSameWeek(a.date, selectedDate);
-    });
-    const currentMinutes = relevant.reduce((s, a) => s + Number(a.duration), 0);
-    const goalMinutes = Number(habit.goalValue) * 60;
-    const percentage = goalMinutes > 0 ? Math.min(100, (currentMinutes / goalMinutes) * 100) : 0;
-    return { currentMinutes, goalMinutes, percentage };
+  const progress = useMemo(() => {
+    const selected = new Date(selectedDate);
+    selected.setHours(0, 0, 0, 0);
+
+    let filtered: Activity[];
+
+    if (habit.goalType === HabitGoal.weekly) {
+      // Get start of week (Monday)
+      const day = selected.getDay();
+      const diff = selected.getDate() - day + (day === 0 ? -6 : 1);
+      const weekStart = new Date(selected);
+      weekStart.setDate(diff);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 7);
+
+      filtered = activities.filter((a) => {
+        if (a.habitId !== habit.id) return false;
+        const actMs = Number(a.date) / 1_000_000;
+        return actMs >= weekStart.getTime() && actMs < weekEnd.getTime();
+      });
+    } else {
+      // Daily
+      const dayEnd = new Date(selected);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      filtered = activities.filter((a) => {
+        if (a.habitId !== habit.id) return false;
+        const actMs = Number(a.date) / 1_000_000;
+        return actMs >= selected.getTime() && actMs <= dayEnd.getTime();
+      });
+    }
+
+    const totalMinutes = filtered.reduce((sum, a) => sum + Number(a.duration), 0);
+    const totalHours = totalMinutes / 60;
+    const goalHours = Number(habit.goalValue);
+    const percentage = goalHours > 0 ? Math.min(100, (totalHours / goalHours) * 100) : 0;
+
+    return { totalHours, goalHours, percentage };
   }, [habit, activities, selectedDate]);
 
-  const currentHours = (currentMinutes / 60).toFixed(1);
-  const goalHours = Number(habit.goalValue);
-  const isComplete = percentage >= 100;
-
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <div
-            className="w-2.5 h-2.5 rounded-full shrink-0"
-            style={{ backgroundColor: habit.color || '#4f46e5' }}
-          />
-          <span className="text-sm font-medium text-slate-700 truncate">{habit.name}</span>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0 ml-2">
-          <span className="text-xs text-slate-500">
-            {currentHours}h / {goalHours}h
+    <Card className="p-3">
+      <CardContent className="p-0 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{ backgroundColor: habit.color }}
+            />
+            <span className="text-sm font-medium text-foreground truncate">{habit.name}</span>
+          </div>
+          <span className="text-xs text-muted-foreground shrink-0">
+            {progress.totalHours.toFixed(1)}h / {progress.goalHours}h
           </span>
-          {isComplete && (
-            <span className="text-xs text-emerald-600 font-bold">✓</span>
-          )}
         </div>
-      </div>
-      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{
-            width: `${percentage}%`,
-            backgroundColor: isComplete ? '#10b981' : (habit.color || '#4f46e5'),
-          }}
-        />
-      </div>
-      <p className="text-xs text-slate-400">
-        {habit.goalType === 'daily' ? 'Daily' : 'Weekly'} goal · {Math.round(percentage)}%
-      </p>
-    </div>
+        <Progress value={progress.percentage} className="h-2" />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>{habit.goalType === HabitGoal.weekly ? 'Weekly' : 'Daily'} goal</span>
+          <span>{Math.round(progress.percentage)}%</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

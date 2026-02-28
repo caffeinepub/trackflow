@@ -1,27 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
 import { useInternetIdentity } from './useInternetIdentity';
-import {
-  UserProfile,
-  Habit,
-  Activity,
-  PaymentRequest,
-  Coupon,
-  HabitGoal,
-  Plan,
-  PlanCycle,
-  PlatformStats,
-  UserApprovalInfo,
-  ApprovalStatus,
-  UserRole,
-} from '../backend';
-import { Principal } from '@dfinity/principal';
+import type { Activity, Habit, UserProfile, PaymentRequest, Coupon, PlatformStats } from '../backend';
+import { HabitGoal, Plan, PlanCycle } from '../backend';
 
 // ── User Profile ─────────────────────────────────────────────────────────────
 
 export function useGetCallerUserProfile() {
   const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
 
   const query = useQuery<UserProfile | null>({
     queryKey: ['currentUserProfile'],
@@ -29,7 +15,7 @@ export function useGetCallerUserProfile() {
       if (!actor) throw new Error('Actor not available');
       return actor.getCallerUserProfile();
     },
-    enabled: !!actor && !actorFetching && !!identity,
+    enabled: !!actor && !actorFetching,
     retry: false,
   });
 
@@ -56,15 +42,15 @@ export function useSaveCallerUserProfile() {
 }
 
 export function useGetAllUsers() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<UserProfile[]>({
     queryKey: ['allUsers'],
     queryFn: async () => {
-      if (!actor) return [];
+      if (!actor) throw new Error('Actor not available');
       return actor.getAllUsers();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !actorFetching,
   });
 }
 
@@ -73,13 +59,13 @@ export function useSetUserPlan() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ user, plan, planExpiry }: { user: Principal; plan: Plan; planExpiry: bigint | null }) => {
+    mutationFn: async ({ user, plan, planExpiry }: { user: string; plan: Plan; planExpiry: bigint | null }) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.setUserPlan(user, plan, planExpiry);
+      const { Principal } = await import('@dfinity/principal');
+      return actor.setUserPlan(Principal.fromText(user), plan, planExpiry);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
     },
   });
 }
@@ -99,22 +85,74 @@ export function useDeleteAccount() {
   });
 }
 
-// ── Habits ───────────────────────────────────────────────────────────────────
+// ── Admin ────────────────────────────────────────────────────────────────────
 
-export function useGetHabits(userId?: string) {
-  const { actor, isFetching } = useActor();
+export function useIsAdmin() {
+  const { actor, isFetching: actorFetching } = useActor();
   const { identity } = useInternetIdentity();
 
-  const principalStr = userId || identity?.getPrincipal().toString();
+  const query = useQuery<boolean>({
+    queryKey: ['isAdmin', identity?.getPrincipal().toString()],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.isCallerAdmin();
+    },
+    enabled: !!actor && !actorFetching && !!identity,
+    retry: false,
+  });
+
+  return {
+    ...query,
+    isLoading: actorFetching || query.isLoading,
+    isFetched: !!actor && query.isFetched,
+    isAdmin: query.data === true,
+  };
+}
+
+export function useSelfPromoteAdmin() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.selfPromoteAdmin();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['isAdmin'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+    },
+  });
+}
+
+export function useGetPlatformStats() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<PlatformStats>({
+    queryKey: ['platformStats'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getPlatformStats();
+    },
+    enabled: !!actor && !actorFetching,
+  });
+}
+
+// ── Habits ───────────────────────────────────────────────────────────────────
+
+export function useGetHabits(userId?: string, goalType?: HabitGoal | null) {
+  const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<Habit[]>({
-    queryKey: ['habits', principalStr],
+    queryKey: ['habits', userId, goalType],
     queryFn: async () => {
-      if (!actor || !principalStr) return [];
-      const principal = Principal.fromText(principalStr);
-      return actor.getHabits(principal, null);
+      if (!actor) throw new Error('Actor not available');
+      if (!userId) return [];
+      const { Principal } = await import('@dfinity/principal');
+      return actor.getHabits(Principal.fromText(userId), goalType ?? null);
     },
-    enabled: !!actor && !isFetching && !!principalStr,
+    enabled: !!actor && !actorFetching && !!userId,
   });
 }
 
@@ -188,21 +226,17 @@ export function useDeleteHabit() {
 // ── Activities ───────────────────────────────────────────────────────────────
 
 export function useGetActivities(userId?: string, habitId?: bigint | null, isProductive?: boolean | null) {
-  const { actor, isFetching } = useActor();
-  const { identity } = useInternetIdentity();
-
-  const principalStr = userId || identity?.getPrincipal().toString();
-  // Convert bigint to string for query key to avoid BigInt serialization issues
-  const habitIdKey = habitId != null ? habitId.toString() : null;
+  const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<Activity[]>({
-    queryKey: ['activities', principalStr, habitIdKey, isProductive],
+    queryKey: ['activities', userId, habitId?.toString(), isProductive],
     queryFn: async () => {
-      if (!actor || !principalStr) return [];
-      const principal = Principal.fromText(principalStr);
-      return actor.getActivities(principal, habitId ?? null, isProductive ?? null);
+      if (!actor) throw new Error('Actor not available');
+      if (!userId) return [];
+      const { Principal } = await import('@dfinity/principal');
+      return actor.getActivities(Principal.fromText(userId), habitId ?? null, isProductive ?? null);
     },
-    enabled: !!actor && !isFetching && !!principalStr,
+    enabled: !!actor && !actorFetching && !!userId,
   });
 }
 
@@ -211,7 +245,17 @@ export function useLogActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
+    mutationFn: async ({
+      habitId,
+      customName,
+      startTime,
+      endTime,
+      duration,
+      isProductive,
+      earnings,
+      notes,
+      date,
+    }: {
       habitId: bigint;
       customName: string;
       startTime: bigint;
@@ -223,17 +267,7 @@ export function useLogActivity() {
       date: bigint;
     }) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.logActivity(
-        params.habitId,
-        params.customName,
-        params.startTime,
-        params.endTime,
-        params.duration,
-        params.isProductive,
-        params.earnings,
-        params.notes,
-        params.date
-      );
+      return actor.logActivity(habitId, customName, startTime, endTime, duration, isProductive, earnings, notes, date);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities'] });
@@ -246,7 +280,18 @@ export function useUpdateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
+    mutationFn: async ({
+      activityId,
+      habitId,
+      customName,
+      startTime,
+      endTime,
+      duration,
+      isProductive,
+      earnings,
+      notes,
+      date,
+    }: {
       activityId: bigint;
       habitId: bigint;
       customName: string;
@@ -259,18 +304,7 @@ export function useUpdateActivity() {
       date: bigint;
     }) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.updateActivity(
-        params.activityId,
-        params.habitId,
-        params.customName,
-        params.startTime,
-        params.endTime,
-        params.duration,
-        params.isProductive,
-        params.earnings,
-        params.notes,
-        params.date
-      );
+      return actor.updateActivity(activityId, habitId, customName, startTime, endTime, duration, isProductive, earnings, notes, date);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities'] });
@@ -295,6 +329,32 @@ export function useDeleteActivity() {
 
 // ── Payment Requests ─────────────────────────────────────────────────────────
 
+export function useGetMyPaymentRequests() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<PaymentRequest[]>({
+    queryKey: ['myPaymentRequests'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getMyPaymentRequests();
+    },
+    enabled: !!actor && !actorFetching,
+  });
+}
+
+export function useGetAllPaymentRequests() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<PaymentRequest[]>({
+    queryKey: ['allPaymentRequests'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getAllPaymentRequests();
+    },
+    enabled: !!actor && !actorFetching,
+  });
+}
+
 export function useSubmitPaymentRequest() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
@@ -316,47 +376,8 @@ export function useSubmitPaymentRequest() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myPaymentRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['allPaymentRequests'] });
     },
-  });
-}
-
-export function useGetMyPaymentRequests() {
-  const { actor, isFetching } = useActor();
-  const { identity } = useInternetIdentity();
-
-  return useQuery<PaymentRequest[]>({
-    queryKey: ['myPaymentRequests'],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getMyPaymentRequests();
-    },
-    enabled: !!actor && !isFetching && !!identity,
-  });
-}
-
-export function useGetPendingPaymentRequests() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<PaymentRequest[]>({
-    queryKey: ['pendingPaymentRequests'],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getPendingPaymentRequests();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useGetAllPaymentRequests() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<PaymentRequest[]>({
-    queryKey: ['allPaymentRequests'],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getAllPaymentRequests();
-    },
-    enabled: !!actor && !isFetching,
   });
 }
 
@@ -370,7 +391,6 @@ export function useApprovePaymentRequest() {
       return actor.approvePaymentRequest(requestId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingPaymentRequests'] });
       queryClient.invalidateQueries({ queryKey: ['allPaymentRequests'] });
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
     },
@@ -387,13 +407,25 @@ export function useRejectPaymentRequest() {
       return actor.rejectPaymentRequest(requestId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingPaymentRequests'] });
       queryClient.invalidateQueries({ queryKey: ['allPaymentRequests'] });
     },
   });
 }
 
 // ── Coupons ──────────────────────────────────────────────────────────────────
+
+export function useListCoupons() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<Coupon[]>({
+    queryKey: ['coupons'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.listCoupons();
+    },
+    enabled: !!actor && !actorFetching,
+  });
+}
 
 export function useGetCoupon() {
   const { actor } = useActor();
@@ -403,19 +435,6 @@ export function useGetCoupon() {
       if (!actor) throw new Error('Actor not available');
       return actor.getCoupon(code);
     },
-  });
-}
-
-export function useListCoupons() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Coupon[]>({
-    queryKey: ['coupons'],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.listCoupons();
-    },
-    enabled: !!actor && !isFetching,
   });
 }
 
@@ -459,48 +478,27 @@ export function useDeleteCoupon() {
   });
 }
 
-// ── Admin ─────────────────────────────────────────────────────────────────────
-
-export function useGetPlatformStats() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<PlatformStats>({
-    queryKey: ['platformStats'],
-    queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.getPlatformStats();
-    },
-    enabled: !!actor && !isFetching,
-    refetchInterval: 30000,
-  });
-}
-
-export function useIsCallerAdmin() {
-  const { actor, isFetching } = useActor();
-  const { identity } = useInternetIdentity();
-
-  return useQuery<boolean>({
-    queryKey: ['isCallerAdmin'],
-    queryFn: async () => {
-      if (!actor) return false;
-      return actor.isCallerAdmin();
-    },
-    enabled: !!actor && !isFetching && !!identity,
-  });
-}
+// ── Approval ─────────────────────────────────────────────────────────────────
 
 export function useIsCallerApproved() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching: actorFetching } = useActor();
   const { identity } = useInternetIdentity();
 
-  return useQuery<boolean>({
-    queryKey: ['isCallerApproved'],
+  const query = useQuery<boolean>({
+    queryKey: ['isCallerApproved', identity?.getPrincipal().toString()],
     queryFn: async () => {
-      if (!actor) return false;
+      if (!actor) throw new Error('Actor not available');
       return actor.isCallerApproved();
     },
-    enabled: !!actor && !isFetching && !!identity,
+    enabled: !!actor && !actorFetching && !!identity,
+    retry: false,
   });
+
+  return {
+    ...query,
+    isLoading: actorFetching || query.isLoading,
+    isFetched: !!actor && query.isFetched,
+  };
 }
 
 export function useRequestApproval() {
@@ -519,15 +517,15 @@ export function useRequestApproval() {
 }
 
 export function useListApprovals() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching: actorFetching } = useActor();
 
-  return useQuery<UserApprovalInfo[]>({
-    queryKey: ['listApprovals'],
+  return useQuery({
+    queryKey: ['approvals'],
     queryFn: async () => {
-      if (!actor) return [];
+      if (!actor) throw new Error('Actor not available');
       return actor.listApprovals();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !actorFetching,
   });
 }
 
@@ -536,48 +534,14 @@ export function useSetApproval() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ user, status }: { user: Principal; status: ApprovalStatus }) => {
+    mutationFn: async ({ user, status }: { user: string; status: import('../backend').ApprovalStatus }) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.setApproval(user, status);
+      const { Principal } = await import('@dfinity/principal');
+      return actor.setApproval(Principal.fromText(user), status);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['listApprovals'] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-    },
-  });
-}
-
-export function useAssignRole() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ user, role }: { user: Principal; role: UserRole }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.assignRole(user, role);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-    },
-  });
-}
-
-export function useSelfPromoteAdmin() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.selfPromoteAdmin();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['isCallerAdmin'] });
-      queryClient.invalidateQueries({ queryKey: ['platformStats'] });
-      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-      queryClient.invalidateQueries({ queryKey: ['pendingPaymentRequests'] });
-      queryClient.invalidateQueries({ queryKey: ['allPaymentRequests'] });
-      queryClient.invalidateQueries({ queryKey: ['coupons'] });
     },
   });
 }

@@ -97,7 +97,7 @@ export enum UserRole {
 }
 export interface backendInterface {
     /**
-     * / Approve a payment request and update the user's plan.
+     * / Approve a payment request and update the user's plan. Admin only.
      */
     approvePaymentRequest(requestId: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
@@ -106,7 +106,7 @@ export interface backendInterface {
      */
     assignRole(user: Principal, role: UserRole): Promise<void>;
     /**
-     * / Create a coupon
+     * / Create a coupon. Admin only.
      */
     createCoupon(code: string, discountPercent: bigint, usageLimit: bigint, expiresAt: Time | null): Promise<void>;
     /**
@@ -122,7 +122,7 @@ export interface backendInterface {
      */
     deleteActivity(activityId: bigint): Promise<void>;
     /**
-     * / Delete a coupon by code.
+     * / Delete a coupon by code. Admin only.
      */
     deleteCoupon(code: string): Promise<void>;
     /**
@@ -135,11 +135,11 @@ export interface backendInterface {
      */
     getActivities(userId: Principal, habitId: bigint | null, isProductive: boolean | null): Promise<Array<Activity>>;
     /**
-     * / Get all payment requests.
+     * / Get all payment requests. Admin only.
      */
     getAllPaymentRequests(): Promise<Array<PaymentRequest>>;
     /**
-     * / Returns all user profiles.
+     * / Returns all user profiles. Admin only.
      */
     getAllUsers(): Promise<Array<UserProfile>>;
     /**
@@ -161,11 +161,11 @@ export interface backendInterface {
      */
     getMyPaymentRequests(): Promise<Array<PaymentRequest>>;
     /**
-     * / Get all pending payment requests.
+     * / Get all pending payment requests. Admin only.
      */
     getPendingPaymentRequests(): Promise<Array<PaymentRequest>>;
     /**
-     * / Platform-wide statistics
+     * / Platform-wide statistics. Admin only.
      */
     getPlatformStats(): Promise<PlatformStats>;
     /**
@@ -182,7 +182,7 @@ export interface backendInterface {
      */
     listApprovals(): Promise<Array<UserApprovalInfo>>;
     /**
-     * / List all coupons.
+     * / List all coupons. Admin only.
      */
     listCoupons(): Promise<Array<Coupon>>;
     /**
@@ -190,7 +190,7 @@ export interface backendInterface {
      */
     logActivity(habitId: bigint, customName: string, startTime: Time, endTime: Time, duration: bigint, isProductive: boolean, earnings: bigint, notes: string, date: Time): Promise<void>;
     /**
-     * / Reject a payment request.
+     * / Reject a payment request. Admin only.
      */
     rejectPaymentRequest(requestId: bigint): Promise<void>;
     /**
@@ -202,7 +202,7 @@ export interface backendInterface {
      */
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     /**
-     * / Search coupons by code substring.
+     * / Search coupons by code substring. Admin only.
      */
     searchCoupons(searchQuery: string): Promise<Array<Coupon>>;
     /**

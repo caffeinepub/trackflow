@@ -12,7 +12,9 @@ import AccessControl "authorization/access-control";
 import UserApproval "user-approval/approval";
 import MixinAuthorization "authorization/MixinAuthorization";
 import MixinStorage "blob-storage/Mixin";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   // ── Access Control ──────────────────────────────────────────────────────────
   let accessControlState = AccessControl.initState();
@@ -262,8 +264,9 @@ actor {
     users.get(user);
   };
 
-  /// Returns all user profiles.
+  /// Returns all user profiles. Admin only.
   public query ({ caller }) func getAllUsers() : async [UserProfile] {
+    requireAdmin(caller);
     users.values().toArray();
   };
 
@@ -537,8 +540,9 @@ actor {
     nextPaymentRequestId += 1;
   };
 
-  /// Approve a payment request and update the user's plan.
+  /// Approve a payment request and update the user's plan. Admin only.
   public shared ({ caller }) func approvePaymentRequest(requestId : Nat) : async () {
+    requireAdmin(caller);
     switch (paymentRequests.get(requestId)) {
       case (null) {
         Runtime.trap("Cannot approve non-existent payment request (id: " # requestId.toText() # ")");
@@ -582,8 +586,9 @@ actor {
     };
   };
 
-  /// Reject a payment request.
+  /// Reject a payment request. Admin only.
   public shared ({ caller }) func rejectPaymentRequest(requestId : Nat) : async () {
+    requireAdmin(caller);
     switch (paymentRequests.get(requestId)) {
       case (null) {
         Runtime.trap("Cannot reject non-existent payment request (id: " # requestId.toText() # ")");
@@ -605,15 +610,17 @@ actor {
     };
   };
 
-  /// Get all pending payment requests.
+  /// Get all pending payment requests. Admin only.
   public query ({ caller }) func getPendingPaymentRequests() : async [PaymentRequest] {
+    requireAdmin(caller);
     paymentRequests.values().toArray().filter(
       func(p : PaymentRequest) : Bool { p.status == #pending }
     );
   };
 
-  /// Get all payment requests.
+  /// Get all payment requests. Admin only.
   public query ({ caller }) func getAllPaymentRequests() : async [PaymentRequest] {
+    requireAdmin(caller);
     paymentRequests.values().toArray();
   };
 
@@ -636,13 +643,14 @@ actor {
     if (filtered.size() == 0) { null } else { ?filtered[0] };
   };
 
-  /// Create a coupon
+  /// Create a coupon. Admin only.
   public shared ({ caller }) func createCoupon(
     code : Text,
     discountPercent : Nat,
     usageLimit : Nat,
     expiresAt : ?Time.Time,
   ) : async () {
+    requireAdmin(caller);
     let coupon : Coupon = {
       id = nextCouponId;
       code;
@@ -656,8 +664,9 @@ actor {
     nextCouponId += 1;
   };
 
-  /// List all coupons.
+  /// List all coupons. Admin only.
   public query ({ caller }) func listCoupons() : async [Coupon] {
+    requireAdmin(caller);
     coupons.values().toArray().sort(
       func(a : Coupon, b : Coupon) : Order.Order {
         Text.compare(a.code, b.code);
@@ -665,8 +674,9 @@ actor {
     );
   };
 
-  /// Delete a coupon by code.
+  /// Delete a coupon by code. Admin only.
   public shared ({ caller }) func deleteCoupon(code : Text) : async () {
+    requireAdmin(caller);
     let filtered = coupons.values().toArray().filter(
       func(c : Coupon) : Bool { c.code == code }
     );
@@ -676,8 +686,9 @@ actor {
     coupons.remove(filtered[0].id);
   };
 
-  /// Search coupons by code substring.
+  /// Search coupons by code substring. Admin only.
   public query ({ caller }) func searchCoupons(searchQuery : Text) : async [Coupon] {
+    requireAdmin(caller);
     let queryLower = searchQuery.map(
       func(c : Char) : Char {
         if (c >= 'A' and c <= 'Z') {
@@ -701,8 +712,9 @@ actor {
 
   // ── Platform stats (admin) ─────────────────────────────────────────────────--
 
-  /// Platform-wide statistics
+  /// Platform-wide statistics. Admin only.
   public query ({ caller }) func getPlatformStats() : async PlatformStats {
+    requireAdmin(caller);
     {
       totalUsers = users.size();
       totalActivities = activities.size();

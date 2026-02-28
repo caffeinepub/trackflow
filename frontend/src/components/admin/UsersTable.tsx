@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/select';
 import { useGetAllUsers, useSetUserPlan } from '@/hooks/useQueries';
 import { Plan } from '@/backend';
-import { Principal } from '@dfinity/principal';
 import { toast } from 'sonner';
 
 const planBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
@@ -71,11 +70,10 @@ export default function UsersTable() {
 
     try {
       await setUserPlan.mutateAsync({
-        user: Principal.fromText(principal),
+        user: principal, // pass string — hook converts to Principal internally
         plan: newPlan,
         planExpiry: null,
       });
-      // Clear the pending change for this user after successful save
       setPendingPlan((prev) => {
         const next = { ...prev };
         delete next[principal];
@@ -84,9 +82,10 @@ export default function UsersTable() {
       toast.success(`Plan updated to ${planLabels[String(newPlan)] ?? String(newPlan)} successfully.`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const friendlyMsg = msg.includes('Unauthorized') || msg.includes('admin')
-        ? 'Admin privileges required. Make sure you are logged in as an admin.'
-        : msg;
+      const friendlyMsg =
+        msg.includes('Unauthorized') || msg.includes('admin')
+          ? 'Admin privileges required. Make sure you are logged in as an admin.'
+          : msg;
       toast.error(`Failed to save plan: ${friendlyMsg}`);
     } finally {
       setSavingPrincipal(null);

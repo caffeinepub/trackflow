@@ -1,49 +1,31 @@
-import { LucideIcon } from 'lucide-react';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface StatsCardProps {
   label: string;
-  value: string;
-  icon: LucideIcon;
-  color: 'indigo' | 'emerald' | 'amber' | 'purple';
+  value: string | number;
+  icon: React.ReactNode;
+  color: 'blue' | 'green' | 'purple' | 'orange';
 }
 
 const colorMap = {
-  indigo: {
-    bg: 'bg-indigo-50',
-    icon: 'text-indigo-600',
-    value: 'text-indigo-700',
-  },
-  emerald: {
-    bg: 'bg-emerald-50',
-    icon: 'text-emerald-600',
-    value: 'text-emerald-700',
-  },
-  amber: {
-    bg: 'bg-amber-50',
-    icon: 'text-amber-600',
-    value: 'text-amber-700',
-  },
-  purple: {
-    bg: 'bg-purple-50',
-    icon: 'text-purple-600',
-    value: 'text-purple-700',
-  },
+  blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+  green: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
+  purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+  orange: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
 };
 
-export default function StatsCard({ label, value, icon: Icon, color }: StatsCardProps) {
-  const colors = colorMap[color];
-
+export default function StatsCard({ label, value, icon, color }: StatsCardProps) {
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">{label}</p>
-            <p className={`text-2xl font-bold truncate ${colors.value}`}>{value}</p>
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${colorMap[color]}`}>
+            {icon}
           </div>
-          <div className={`w-10 h-10 rounded-xl ${colors.bg} flex items-center justify-center shrink-0 ml-3`}>
-            <Icon className={`w-5 h-5 ${colors.icon}`} />
+          <div>
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="text-xl font-bold text-foreground">{value ?? '—'}</p>
           </div>
         </div>
       </CardContent>

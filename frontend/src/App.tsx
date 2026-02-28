@@ -1,260 +1,181 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
 import {
-  createHashHistory,
-  createRootRoute,
-  createRoute,
   createRouter,
-  Outlet,
+  createRoute,
+  createRootRoute,
   RouterProvider,
-  useNavigate,
+  Outlet,
 } from '@tanstack/react-router';
-import { useInternetIdentity } from './hooks/useInternetIdentity';
-import Layout from './components/layout/Layout';
-import LoginPage from './pages/LoginPage';
-import PricingPage from './pages/PricingPage';
-import PaymentPage from './pages/PaymentPage';
-import DashboardPage from './pages/DashboardPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import ActivitiesPage from './pages/ActivitiesPage';
-import HabitsPage from './pages/HabitsPage';
-import ProfilePage from './pages/ProfilePage';
-import AdminPage from './pages/AdminPage';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/sonner';
+import Sidebar from './components/layout/Sidebar';
+import Footer from './components/layout/Footer';
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+import HabitsPage from './pages/HabitsPage';
+import PricingPage from './pages/PricingPage';
+import AdminPage from './pages/AdminPage';
+import ProfilePage from './pages/ProfilePage';
+
+// Lazy-loaded pages
+const AnalyticsPage = React.lazy(() => import('./pages/AnalyticsPage'));
+const PaymentPage = React.lazy(() => import('./pages/PaymentPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
       staleTime: 30_000,
+      retry: 1,
     },
   },
 });
 
-// Root layout component
-function RootLayout() {
+// Layout component for authenticated pages
+function AppLayout() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   return (
-    <>
-      <Outlet />
-      <Toaster richColors position="top-right" />
-    </>
+    <div className="flex h-screen bg-background overflow-hidden">
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed((c) => !c)}
+      />
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+        <Footer />
+      </div>
+    </div>
   );
 }
 
-// Not found fallback — redirects to /login
-function NotFoundRedirect() {
-  const { identity, isInitializing } = useInternetIdentity();
-  const navigate = useNavigate();
-
-  if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (identity) {
-    navigate({ to: '/dashboard' });
-  } else {
-    navigate({ to: '/login' });
-  }
+// Redirect component for the index route
+function IndexRedirect() {
+  useEffect(() => {
+    window.location.replace('/#/dashboard');
+  }, []);
   return null;
 }
 
-// Protected layout that checks authentication (no sidebar)
-function ProtectedLayout() {
-  const { identity, isInitializing } = useInternetIdentity();
-  const navigate = useNavigate();
-
-  if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!identity) {
-    navigate({ to: '/login' });
-    return null;
-  }
-
-  return <Outlet />;
-}
-
-// Protected layout with sidebar for main app pages
-function ProtectedLayoutWithSidebar() {
-  const { identity, isInitializing } = useInternetIdentity();
-  const navigate = useNavigate();
-
-  if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!identity) {
-    navigate({ to: '/login' });
-    return null;
-  }
-
+// Suspense wrapper for lazy pages
+function SuspenseFallback() {
   return (
-    <Layout>
-      <Outlet />
-    </Layout>
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
   );
 }
 
-// Public layout that redirects authenticated users
-function PublicLayout() {
-  const { identity, isInitializing } = useInternetIdentity();
-  const navigate = useNavigate();
-
-  if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (identity) {
-    navigate({ to: '/dashboard' });
-    return null;
-  }
-
-  return <Outlet />;
+function AnalyticsPageWrapper() {
+  return (
+    <React.Suspense fallback={<SuspenseFallback />}>
+      <AnalyticsPage />
+    </React.Suspense>
+  );
 }
 
-// Route definitions
+function PaymentPageWrapper() {
+  return (
+    <React.Suspense fallback={<SuspenseFallback />}>
+      <PaymentPage />
+    </React.Suspense>
+  );
+}
+
+// Root route
 const rootRoute = createRootRoute({
-  component: RootLayout,
-  notFoundComponent: NotFoundRedirect,
+  component: () => <Outlet />,
 });
 
-const publicRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  id: 'public',
-  component: PublicLayout,
-});
-
-const indexRoute = createRoute({
-  getParentRoute: () => publicRoute,
-  path: '/',
-  component: LoginPage,
-});
-
+// Login route (no sidebar)
 const loginRoute = createRoute({
-  getParentRoute: () => publicRoute,
+  getParentRoute: () => rootRoute,
   path: '/login',
   component: LoginPage,
 });
 
-// Protected routes WITHOUT sidebar (pricing, payment)
-const protectedRoute = createRoute({
+// Pricing route (public, no sidebar required)
+const pricingPublicRoute = createRoute({
   getParentRoute: () => rootRoute,
-  id: 'protected',
-  component: ProtectedLayout,
-});
-
-const pricingRoute = createRoute({
-  getParentRoute: () => protectedRoute,
   path: '/pricing',
   component: PricingPage,
 });
 
-const paymentRoute = createRoute({
-  getParentRoute: () => protectedRoute,
-  path: '/payment',
-  component: PaymentPage,
-});
-
-// Protected routes WITH sidebar (main app pages)
-const protectedSidebarRoute = createRoute({
+// Index redirect route
+const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
-  id: 'protected-sidebar',
-  component: ProtectedLayoutWithSidebar,
+  path: '/',
+  component: IndexRedirect,
 });
 
+// App layout route
+const appLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'app',
+  component: AppLayout,
+});
+
+// Dashboard
 const dashboardRoute = createRoute({
-  getParentRoute: () => protectedSidebarRoute,
+  getParentRoute: () => appLayoutRoute,
   path: '/dashboard',
   component: DashboardPage,
 });
 
-const analyticsRoute = createRoute({
-  getParentRoute: () => protectedSidebarRoute,
-  path: '/analytics',
-  component: AnalyticsPage,
-});
-
-const activitiesRoute = createRoute({
-  getParentRoute: () => protectedSidebarRoute,
-  path: '/activities',
-  component: ActivitiesPage,
-});
-
+// Habits
 const habitsRoute = createRoute({
-  getParentRoute: () => protectedSidebarRoute,
+  getParentRoute: () => appLayoutRoute,
   path: '/habits',
   component: HabitsPage,
 });
 
+// Analytics
+const analyticsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/analytics',
+  component: AnalyticsPageWrapper,
+});
+
+// Profile
 const profileRoute = createRoute({
-  getParentRoute: () => protectedSidebarRoute,
+  getParentRoute: () => appLayoutRoute,
   path: '/profile',
   component: ProfilePage,
 });
 
+// Admin
 const adminRoute = createRoute({
-  getParentRoute: () => protectedSidebarRoute,
+  getParentRoute: () => appLayoutRoute,
   path: '/admin',
   component: AdminPage,
 });
 
-// Catch-all route for any unmatched paths
-const catchAllRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '*',
-  component: NotFoundRedirect,
+// Payment
+const paymentRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/payment',
+  component: PaymentPageWrapper,
 });
 
-const hashHistory = createHashHistory();
-
 const routeTree = rootRoute.addChildren([
-  publicRoute.addChildren([indexRoute, loginRoute]),
-  protectedRoute.addChildren([
-    pricingRoute,
-    paymentRoute,
-  ]),
-  protectedSidebarRoute.addChildren([
+  loginRoute,
+  pricingPublicRoute,
+  indexRoute,
+  appLayoutRoute.addChildren([
     dashboardRoute,
-    analyticsRoute,
-    activitiesRoute,
     habitsRoute,
+    analyticsRoute,
     profileRoute,
     adminRoute,
+    paymentRoute,
   ]),
-  catchAllRoute,
 ]);
 
 const router = createRouter({
   routeTree,
-  history: hashHistory,
+  history: 'hash' as any,
 });
 
 declare module '@tanstack/react-router' {
@@ -266,7 +187,10 @@ declare module '@tanstack/react-router' {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <RouterProvider router={router} />
+        <Toaster richColors position="top-right" />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

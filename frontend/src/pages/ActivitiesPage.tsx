@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useGetActivities, useGetHabits, useDeleteActivity } from '../hooks/useQueries';
 import { Activity, Habit } from '../backend';
-import { Filter, Download, Trash2, Edit2, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Filter, Download, Trash2, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,8 +33,11 @@ function formatTime(ts: bigint): string {
 }
 
 export default function ActivitiesPage() {
-  const { data: activities = [], isLoading } = useGetActivities();
-  const { data: habits = [] } = useGetHabits();
+  const { identity } = useInternetIdentity();
+  const userId = identity?.getPrincipal().toString();
+
+  const { data: activities = [], isLoading } = useGetActivities(userId);
+  const { data: habits = [] } = useGetHabits(userId);
   const deleteActivity = useDeleteActivity();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -87,8 +90,9 @@ export default function ActivitiesPage() {
       await Promise.all([...selectedIds].map(id => deleteActivity.mutateAsync(BigInt(id))));
       setSelectedIds(new Set());
       toast.success(`Deleted ${selectedIds.size} activities`);
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to delete activities');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete activities';
+      toast.error(msg);
     }
   };
 
@@ -97,8 +101,9 @@ export default function ActivitiesPage() {
     try {
       await deleteActivity.mutateAsync(id);
       toast.success('Activity deleted');
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to delete');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete';
+      toast.error(msg);
     }
   };
 
@@ -115,20 +120,20 @@ export default function ActivitiesPage() {
     const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `trackflow-activities-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `trackflow-activities-${new Date().toISOString().split('T')[0]}.csv`;
+    anchor.click();
     URL.revokeObjectURL(url);
     toast.success('CSV exported!');
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Activities</h1>
-          <p className="text-slate-500 text-sm">{filtered.length} activities found</p>
+          <h1 className="text-2xl font-bold text-foreground">Activities</h1>
+          <p className="text-muted-foreground text-sm">{filtered.length} activities found</p>
         </div>
         <div className="flex gap-2">
           {selectedIds.size > 0 && (
@@ -153,20 +158,19 @@ export default function ActivitiesPage() {
       <Card className="border-0 shadow-sm">
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3 items-center">
-            <Filter className="w-4 h-4 text-slate-400" />
+            <Filter className="w-4 h-4 text-muted-foreground" />
             <input
               type="date"
               value={filterDateFrom}
               onChange={e => { setFilterDateFrom(e.target.value); setPage(1); }}
-              className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="From"
+              className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
-            <span className="text-slate-400 text-sm">to</span>
+            <span className="text-muted-foreground text-sm">to</span>
             <input
               type="date"
               value={filterDateTo}
               onChange={e => { setFilterDateTo(e.target.value); setPage(1); }}
-              className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="border border-border rounded-lg px-3 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <Select value={filterHabit} onValueChange={v => { setFilterHabit(v); setPage(1); }}>
               <SelectTrigger className="w-36 h-9 text-sm">
@@ -192,7 +196,7 @@ export default function ActivitiesPage() {
             {(filterHabit !== 'all' || filterProductive !== 'all' || filterDateFrom || filterDateTo) && (
               <button
                 onClick={() => { setFilterHabit('all'); setFilterProductive('all'); setFilterDateFrom(''); setFilterDateTo(''); setPage(1); }}
-                className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                className="text-xs text-primary hover:underline"
               >
                 Clear filters
               </button>
@@ -207,116 +211,140 @@ export default function ActivitiesPage() {
           <CardContent className="pt-4">
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 mb-2 rounded-lg" />)}
           </CardContent>
-        ) : paginated.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <CardContent className="py-16 text-center">
-            <p className="text-slate-400">No activities found. Start logging your day!</p>
+            <p className="text-muted-foreground">No activities found.</p>
           </CardContent>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-100">
-                <tr>
-                  <th className="px-4 py-3 text-left">
-                    <Checkbox
-                      checked={selectedIds.size === paginated.length && paginated.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Activity</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Duration</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Earnings</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {paginated.map(activity => {
-                  const habit = habits.find(h => String(h.id) === String(activity.habitId));
-                  const name = activity.customName || habit?.name || 'Unnamed';
-                  return (
-                    <tr key={String(activity.id)} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <Checkbox
-                          checked={selectedIds.has(String(activity.id))}
-                          onCheckedChange={() => toggleSelect(String(activity.id))}
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{formatDate(activity.date)}</td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="text-sm font-medium text-slate-800">{name}</p>
-                          {activity.notes && <p className="text-xs text-slate-400 truncate max-w-xs">{activity.notes}</p>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{formatDuration(activity.duration)}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-slate-700">
-                        {Number(activity.earnings) > 0 ? `₹${Number(activity.earnings).toLocaleString('en-IN')}` : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={activity.isProductive ? 'default' : 'secondary'} className={activity.isProductive ? 'bg-emerald-100 text-emerald-700 border-0' : 'bg-slate-100 text-slate-600 border-0'}>
-                          {activity.isProductive ? 'Productive' : 'Leisure'}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => setEditingActivity(activity)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(activity.id)}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="flex items-center px-3 text-sm text-slate-600">
-                {page} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    <th className="w-10 px-4 py-3">
+                      <Checkbox
+                        checked={selectedIds.size === paginated.length && paginated.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Activity</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Habit</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Time</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Duration</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Earnings</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map(activity => {
+                    const habit = habits.find(h => String(h.id) === String(activity.habitId));
+                    const isSelected = selectedIds.has(String(activity.id));
+                    return (
+                      <tr
+                        key={String(activity.id)}
+                        className={`border-b border-border transition-colors ${isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'}`}
+                      >
+                        <td className="px-4 py-3">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSelect(String(activity.id))}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                          {formatDate(activity.date)}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-foreground max-w-[160px] truncate">
+                          {activity.customName || '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          {habit ? (
+                            <span className="flex items-center gap-1.5">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: habit.color }}
+                              />
+                              <span className="text-foreground truncate max-w-[100px]">{habit.name}</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                          {formatTime(activity.startTime)} – {formatTime(activity.endTime)}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                          {formatDuration(activity.duration)}
+                        </td>
+                        <td className="px-4 py-3 text-foreground">
+                          {Number(activity.earnings) > 0 ? `₹${Number(activity.earnings).toLocaleString('en-IN')}` : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={activity.isProductive ? 'default' : 'secondary'} className="text-xs">
+                            {activity.isProductive ? 'Productive' : 'Leisure'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingActivity(activity)}
+                              className="p-1.5 text-muted-foreground hover:text-primary rounded-lg transition-colors"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(activity.id)}
+                              className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm text-foreground">{page} / {totalPages}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </Card>
 
+      {/* Edit Modal */}
       {editingActivity && (
         <EditActivityModal
           activity={editingActivity}
           habits={habits}
+          open={!!editingActivity}
           onClose={() => setEditingActivity(null)}
         />
       )}

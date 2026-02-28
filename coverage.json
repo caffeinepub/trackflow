@@ -1,18 +1,67 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T13:52:21.787Z",
+  "generatedAt": "2026-02-28T18:57:17.693Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 1,
-    "implemented": 1,
+    "total": 6,
+    "implemented": 5,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Fix all non-responsive button click handlers on the /pricing page (PricingPage.tsx) so that plan selection buttons, profile setup actions, and navigation-to-payment buttons all respond correctly to user interaction.",
+        "summary": "Fix the 'actor not available' error on the dashboard and throughout the app. Ensure the backend actor is properly initialized and available before any queries or mutations are executed. Add defensive checks so that queries dependent on the actor do not fire until the actor is ready, and display appropriate loading states instead of errors.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/components/dashboard/AddActivityForm.tsx",
+          "frontend/src/components/dashboard/ActivityTimeline.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/components/dashboard/AddActivityForm.tsx",
+          "frontend/src/components/dashboard/ActivityTimeline.tsx"
+        ]
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Fix dashboard data not loading. Ensure that all dashboard data (stats, today's activities, habit progress bars) is fetched and rendered correctly after the actor becomes available. Fix any query keys, stale data, or missing invalidation that prevents data from appearing on the DashboardPage.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/components/dashboard/StatsCard.tsx",
+          "frontend/src/components/dashboard/HabitProgressBar.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/components/dashboard/StatsCard.tsx",
+          "frontend/src/components/dashboard/HabitProgressBar.tsx"
+        ]
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Fix habit creation on the HabitsPage so that new habits are saved to the backend canister. Ensure the createHabit mutation in useQueries.ts is correctly calling the backend actor method, handling errors gracefully, and invalidating the habits query cache on success so the new habit appears immediately.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/habits/HabitFormModal.tsx",
+          "frontend/src/pages/HabitsPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/habits/HabitFormModal.tsx",
+          "frontend/src/pages/HabitsPage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-4",
+        "summary": "Wire up all buttons on the PricingPage so they are fully functional. Plan selection buttons should navigate authenticated users to the PaymentPage with the selected plan as a parameter, and prompt unauthenticated users to log in. Ensure CTAs and any other buttons on the page perform their intended actions without errors.",
         "status": "implemented",
         "plannedFiles": [
           "frontend/src/pages/PricingPage.tsx"
@@ -20,14 +69,57 @@
         "matchedFiles": [
           "frontend/src/pages/PricingPage.tsx"
         ]
+      },
+      {
+        "id": "REQ-5",
+        "summary": "Add an admin system to the backend. Store an admin principal list in the canister state. Hardcode the app owner's Internet Identity principal as the initial admin. Expose backend functions: isAdmin(caller) returning Bool, getAdminPrincipal() returning the admin principal, and any admin-only functions (getAllUsers, getPlatformStats, approvePayment, rejectPayment, manageCoupons) gated behind an admin check that traps or returns an error for non-admin callers.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-6",
+        "summary": "Add frontend admin access control. In useQueries.ts, expose an isAdmin query that checks if the current user is admin via the backend. In the Sidebar, show admin navigation links only when isAdmin is true. Protect the AdminPage route so non-admin users are redirected to the dashboard. Remove or supplement the existing session-storage password gate on AdminPage with the principal-based admin check.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/layout/Sidebar.tsx",
+          "frontend/src/pages/AdminPage.tsx",
+          "frontend/src/App.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/layout/Sidebar.tsx",
+          "frontend/src/pages/AdminPage.tsx",
+          "frontend/src/App.tsx"
+        ]
       }
     ]
   },
   "changedFiles": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
+    "frontend/src/App.tsx",
+    "frontend/src/backend.d.ts",
+    "frontend/src/backend.ts",
+    "frontend/src/components/activities/EditActivityModal.tsx",
+    "frontend/src/components/admin/UsersTable.tsx",
+    "frontend/src/components/dashboard/ActivityTimeline.tsx",
+    "frontend/src/components/dashboard/AddActivityForm.tsx",
+    "frontend/src/components/dashboard/HabitProgressBar.tsx",
+    "frontend/src/components/dashboard/StatsCard.tsx",
+    "frontend/src/components/habits/HabitFormModal.tsx",
+    "frontend/src/components/layout/Sidebar.tsx",
+    "frontend/src/declarations/backend.did.d.ts",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/ActivitiesPage.tsx",
+    "frontend/src/pages/AdminPage.tsx",
+    "frontend/src/pages/DashboardPage.tsx",
+    "frontend/src/pages/HabitsPage.tsx",
     "frontend/src/pages/PricingPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",

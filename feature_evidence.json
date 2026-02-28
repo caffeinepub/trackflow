@@ -1,0 +1,251 @@
+{
+  "kind": "feature_evidence_report",
+  "features": [
+    {
+      "featureId": "feature-implement-internet-identity-authentication-after-successful-login-redirect-users-to-the-pricing-plan-selection-page",
+      "featureTitle": "Implement Internet Identity authentication. After successful login, redirect users to the pricing/plan selection page.",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/pages/LoginPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-create-a-pricing-plan-selection-page-shown-after-login-display-three-plans-free-3-habits-basic-checkbox-analytics-no-payment-required-direct-to-dashboard-starter-149-month-and-premium-399-month-or-3-199-year-free-plan-skips-payment-paid-plans-proceed-to-the-upi-payment-flow",
+      "featureTitle": "Create a pricing/plan selection page shown after login. Display three plans: Free (3 habits, basic checkbox analytics, no payment required — direct to dashboard), Starter (₹149/month), and Premium (₹399/month or ₹3,199/year). Free plan skips payment; paid plans proceed to the UPI payment flow.",
+      "files": [
+        "frontend/src/pages/PricingPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-a-upi-payment-page-for-starter-and-premium-plans-display-upi-id-yadavmannan007-okicici-with-a-qr-code-placeholder-an-input-field-for-the-user-to-enter-their-upi-transaction-id-a-coupon-code-input-field-with-validation-and-a-submit-button-on-submission-save-the-pending-payment-request-user-id-plan-transaction-id-coupon-used-timestamp-to-the-backend-with-status-pending",
+      "featureTitle": "Build a UPI payment page for Starter and Premium plans. Display UPI ID yadavmannan007@okicici with a QR code placeholder, an input field for the user to enter their UPI transaction ID, a coupon code input field with validation, and a Submit button. On submission, save the pending payment request (user ID, plan, transaction ID, coupon used, timestamp) to the backend with status 'pending'.",
+      "files": [
+        "frontend/src/pages/PaymentPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-the-dashboard-page-dashboard-showing-welcome-message-with-today-s-date-quick-stats-cards-total-hours-today-total-earnings-today-in-productive-hours-most-active-habit-an-add-activity-form-activity-name-dropdown-with-add-new-option-start-end-time-pickers-with-auto-calculated-duration-productive-checkbox-earnings-in-notes-today-s-timeline-listing-all-activities-for-the-selected-date-each-card-shows-time-range-activity-name-duration-earnings-productive-badge-edit-delete-icons-and-habit-progress-bars-showing-daily-goal-completion-per-habit",
+      "featureTitle": "Build the Dashboard page (/dashboard) showing: welcome message with today's date, quick stats cards (Total Hours Today, Total Earnings Today in ₹, Productive Hours, Most Active Habit), an Add Activity form (activity name dropdown with add-new option, start/end time pickers with auto-calculated duration, productive checkbox, earnings in ₹, notes), Today's Timeline listing all activities for the selected date (each card shows time range, activity name, duration, earnings, productive badge, edit/delete icons), and Habit Progress Bars showing daily goal completion per habit.",
+      "files": [
+        "frontend/src/components/dashboard/ActivityTimeline.tsx",
+        "frontend/src/components/dashboard/AddActivityForm.tsx",
+        "frontend/src/components/dashboard/HabitProgressBar.tsx",
+        "frontend/src/components/dashboard/StatsCard.tsx",
+        "frontend/src/pages/DashboardPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-5"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-the-analytics-page-analytics-with-a-date-range-selector-last-7-days-last-30-days-this-month-a-pie-chart-for-time-distribution-by-activity-a-bar-chart-for-daily-earnings-trend-a-line-chart-for-productivity-trend-and-summary-stats-average-daily-hours-total-earnings-most-productive-day-top-3-activities-starter-plan-users-see-normal-analytics-premium-users-see-full-analytics-free-users-see-only-checkbox-style-basic-analytics",
+      "featureTitle": "Build the Analytics page (/analytics) with a date range selector (Last 7 days, Last 30 days, This Month), a Pie Chart for time distribution by activity, a Bar Chart for daily earnings trend, a Line Chart for productivity trend, and summary stats (average daily hours, total earnings, most productive day, top 3 activities). Starter plan users see normal analytics; Premium users see full analytics; Free users see only checkbox-style basic analytics.",
+      "files": [
+        "frontend/src/pages/AnalyticsPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-6"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-the-activities-page-activities-with-filter-bar-date-range-by-habit-productive-unproductive-a-table-list-view-with-columns-date-activity-duration-earnings-productive-actions-pagination-10-items-per-page-bulk-delete-and-export-to-csv-button",
+      "featureTitle": "Build the Activities page (/activities) with filter bar (date range, by habit, productive/unproductive), a table/list view with columns (Date, Activity, Duration, Earnings ₹, Productive, Actions), pagination (10 items per page), bulk delete, and Export to CSV button.",
+      "files": [
+        "frontend/src/pages/ActivitiesPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-7"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-the-habits-page-habits-showing-all-user-habits-with-add-edit-delete-functionality-name-goal-type-daily-weekly-goal-value-in-hours-color-picker-display-current-streak-per-habit-enforce-plan-limits-free-users-capped-at-3-habits-starter-at-10-habits-premium-unlimited-show-an-upgrade-prompt-modal-when-the-limit-is-exceeded",
+      "featureTitle": "Build the Habits page (/habits) showing all user habits with Add/Edit/Delete functionality (name, goal type daily/weekly, goal value in hours, color picker). Display current streak per habit. Enforce plan limits: Free users capped at 3 habits; Starter at 10 habits; Premium unlimited. Show an upgrade prompt modal when the limit is exceeded.",
+      "files": [
+        "frontend/src/components/habits/HabitFormModal.tsx",
+        "frontend/src/components/habits/UpgradePlanModal.tsx",
+        "frontend/src/pages/HabitsPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-8"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-the-profile-page-profile-showing-google-internet-identity-profile-info-an-editable-phone-number-field-account-statistics-member-since-total-activities-logged-total-tracked-hours-total-earnings-in-a-delete-account-button-with-confirmation-dialog-and-an-export-my-data-button-that-downloads-a-json-csv-of-the-user-s-data",
+      "featureTitle": "Build the Profile page (/profile) showing Google/Internet Identity profile info, an editable phone number field, account statistics (member since, total activities logged, total tracked hours, total earnings in ₹), a Delete Account button with confirmation dialog, and an Export My Data button that downloads a JSON/CSV of the user's data.",
+      "files": [
+        "frontend/src/pages/ProfilePage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-9"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-the-admin-panel-admin-accessible-via-url-the-admin-panel-must-include-a-pending-payments-queue-showing-user-name-selected-plan-submitted-transaction-id-coupon-used-and-approve-reject-buttons-a-users-table-name-principal-phone-plan-signup-date-last-login-with-ability-to-manually-change-a-user-s-plan-a-coupon-management-section-to-create-new-coupons-code-discount-usage-limit-expiry-date-and-view-delete-existing-ones-and-platform-wide-stats-total-users-total-activities-active-users-today",
+      "featureTitle": "Build the Admin Panel (/admin) accessible via URL. The admin panel must include: a pending payments queue showing user name, selected plan, submitted transaction ID, coupon used, and Approve/Reject buttons; a users table (name, principal, phone, plan, signup date, last login) with ability to manually change a user's plan; a coupon management section to create new coupons (code, discount %, usage limit, expiry date) and view/delete existing ones; and platform-wide stats (total users, total activities, active users today).",
+      "files": [
+        "frontend/src/components/admin/CouponManagement.tsx",
+        "frontend/src/components/admin/PaymentsQueue.tsx",
+        "frontend/src/components/admin/PlatformStats.tsx",
+        "frontend/src/components/admin/UsersTable.tsx",
+        "frontend/src/pages/AdminPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-10"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-implement-a-collapsible-sidebar-navigation-with-icons-for-dashboard-home-analytics-chart-activities-list-habits-checkbox-profile-user-the-admin-link-shield-icon-is-only-visible-when-the-authenticated-user-has-the-admin-role-apply-a-consistent-indigo-4f46e5-primary-color-theme-with-inter-poppins-font-card-components-toast-notifications-and-loading-skeletons-throughout-footer-reads-year-trackflow-all-rights-reserved",
+      "featureTitle": "Implement a collapsible sidebar navigation with icons for: Dashboard (Home), Analytics (Chart), Activities (List), Habits (Checkbox), Profile (User). The Admin link (Shield icon) is only visible when the authenticated user has the admin role. Apply a consistent Indigo (#4f46e5) primary color theme with Inter/Poppins font, card components, toast notifications, and loading skeletons throughout. Footer reads '© {year} TrackFlow. All rights reserved.'",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/components/layout/Footer.tsx",
+        "frontend/src/components/layout/Layout.tsx",
+        "frontend/src/components/layout/Sidebar.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-11"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-apply-a-clean-modern-productivity-app-visual-theme-deep-indigo-4f46e5-primary-with-white-card-backgrounds-subtle-gray-surfaces-inter-poppins-typography-generous-spacing-and-smooth-micro-interactions-hover-states-transitions-the-design-should-feel-professional-and-focused-suitable-for-a-daily-productivity-tool",
+      "featureTitle": "Apply a clean, modern productivity-app visual theme: deep Indigo (#4f46e5) primary with white card backgrounds, subtle gray surfaces, Inter/Poppins typography, generous spacing, and smooth micro-interactions (hover states, transitions). The design should feel professional and focused, suitable for a daily productivity tool.",
+      "files": [
+        "frontend/src/index.css",
+        "frontend/tailwind.config.js"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "blob-storage@4.0.0",
+        "user-approval@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-12"
+      ],
+      "confidence": "high"
+    }
+  ]
+}

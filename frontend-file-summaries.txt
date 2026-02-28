@@ -1,0 +1,20 @@
+{
+  "frontend/src/hooks/useQueries.ts": "All React Query hooks for backend interactions — the `useGetActivities` query key now converts the `habitId` bigint parameter to a string using `.toString()` to fix the BigInt-in-query-key lint error.",
+  "frontend/src/pages/HabitsPage.tsx": "Habits management page with plan-limit enforcement, add/edit/delete habit functionality, and streak display — replaced deprecated `flex-shrink-0` with `shrink-0` (Tailwind v3).",
+  "frontend/src/pages/PricingPage.tsx": "Plan selection page with Free/Starter/Premium cards, profile setup dialog for new users, and navigation to UPI payment flow — uses typed PlanId union instead of Plan enum for string literals.",
+  "frontend/src/pages/ProfilePage.tsx": "User profile page with editable phone number, account statistics, data export, and account deletion — replaced deprecated `flex-shrink-0` with `shrink-0` (Tailwind v3).",
+  "frontend/src/components/layout/Sidebar.tsx": "Collapsible sidebar navigation with links to all app pages, admin-only Shield link, logout button, and tooltip support for collapsed icon-only mode.",
+  "frontend/src/components/layout/Footer.tsx": "Simple footer component displaying copyright year, TrackFlow branding, and caffeine.ai attribution link with UTM tracking.",
+  "frontend/src/components/dashboard/StatsCard.tsx": "Reusable stat card component displaying a label, value, icon, and color-coded accent for dashboard quick stats.",
+  "frontend/src/components/dashboard/AddActivityForm.tsx": "Form component for logging new activities with habit selector, time pickers, auto-calculated duration, earnings, productive checkbox, and notes.",
+  "frontend/src/components/dashboard/ActivityTimeline.tsx": "Timeline component showing today's activities sorted by time with inline edit/delete functionality and productive/leisure badges.",
+  "frontend/src/components/dashboard/HabitProgressBar.tsx": "Progress bar component showing current vs. goal hours for a habit, supporting both daily and weekly goal types.",
+  "frontend/src/components/activities/EditActivityModal.tsx": "Modal dialog for editing an existing activity's name, times, earnings, productive flag, and notes with backend update mutation.",
+  "frontend/src/components/habits/HabitFormModal.tsx": "Modal dialog for creating or editing a habit with name, goal type, goal value, and color picker fields.",
+  "frontend/src/components/habits/UpgradePlanModal.tsx": "Modal shown when a user hits their plan's habit limit, displaying upgrade options for Starter and Premium plans.",
+  "frontend/src/components/admin/PlatformStats.tsx": "Admin stats grid showing total users, activities, habits, and payment requests with auto-refresh every 30 seconds.",
+  "frontend/src/components/admin/PaymentsQueue.tsx": "Admin component listing pending UPI payment requests with approve/reject actions that update user plans on approval.",
+  "frontend/src/components/admin/UsersTable.tsx": "Admin table of all users with search, principal copy, and inline plan-change dropdown for manual plan management.",
+  "frontend/src/components/admin/CouponManagement.tsx": "Admin component for creating new coupon codes with discount/usage/expiry settings and listing/deleting existing coupons.",
+  "frontend/src/index.css": "Global stylesheet for TrackFlow with Tailwind directives, Inter/Poppins Google Fonts import, and a full OKLCH color design system using Indigo as the primary color for both light and dark modes."
+}

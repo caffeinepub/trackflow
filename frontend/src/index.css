@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+
+    /* TrackFlow Indigo Design System — OKLCH */
+    --background: 0.98 0.004 264;
+    --foreground: 0.18 0.02 264;
+
+    --card: 1 0 0;
+    --card-foreground: 0.18 0.02 264;
+
+    --popover: 1 0 0;
+    --popover-foreground: 0.18 0.02 264;
+
+    /* Indigo primary */
+    --primary: 0.48 0.22 264;
+    --primary-foreground: 0.99 0 0;
+
+    --secondary: 0.94 0.01 264;
+    --secondary-foreground: 0.3 0.05 264;
+
+    --muted: 0.95 0.008 264;
+    --muted-foreground: 0.52 0.03 264;
+
+    --accent: 0.93 0.015 264;
+    --accent-foreground: 0.3 0.05 264;
+
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+
+    --border: 0.9 0.01 264;
+    --input: 0.9 0.01 264;
+    --ring: 0.48 0.22 264;
+
+    /* Charts */
+    --chart-1: 0.48 0.22 264;
+    --chart-2: 0.55 0.18 300;
+    --chart-3: 0.6 0.18 184;
+    --chart-4: 0.65 0.18 84;
+    --chart-5: 0.65 0.22 27;
+
+    /* Sidebar */
+    --sidebar: 1 0 0;
+    --sidebar-foreground: 0.18 0.02 264;
+    --sidebar-primary: 0.48 0.22 264;
+    --sidebar-primary-foreground: 0.99 0 0;
+    --sidebar-accent: 0.94 0.01 264;
+    --sidebar-accent-foreground: 0.3 0.05 264;
+    --sidebar-border: 0.9 0.01 264;
+    --sidebar-ring: 0.48 0.22 264;
+  }
+
+  .dark {
+    --background: 0.13 0.02 264;
+    --foreground: 0.95 0.01 264;
+
+    --card: 0.18 0.025 264;
+    --card-foreground: 0.95 0.01 264;
+
+    --popover: 0.22 0.025 264;
+    --popover-foreground: 0.95 0.01 264;
+
+    --primary: 0.6 0.2 264;
+    --primary-foreground: 0.99 0 0;
+
+    --secondary: 0.25 0.03 264;
+    --secondary-foreground: 0.9 0.01 264;
+
+    --muted: 0.25 0.03 264;
+    --muted-foreground: 0.65 0.03 264;
+
+    --accent: 0.3 0.04 264;
+    --accent-foreground: 0.9 0.01 264;
+
+    --destructive: 0.704 0.191 22.216;
+    --destructive-foreground: 0.205 0 0;
+
+    --border: 1 0 0 / 10%;
+    --input: 1 0 0 / 15%;
+    --ring: 0.6 0.2 264;
+
+    --chart-1: 0.6 0.2 264;
+    --chart-2: 0.65 0.18 300;
+    --chart-3: 0.65 0.18 184;
+    --chart-4: 0.7 0.18 84;
+    --chart-5: 0.7 0.22 27;
+
+    --sidebar: 0.18 0.025 264;
+    --sidebar-foreground: 0.95 0.01 264;
+    --sidebar-primary: 0.6 0.2 264;
+    --sidebar-primary-foreground: 0.99 0 0;
+    --sidebar-accent: 0.25 0.03 264;
+    --sidebar-accent-foreground: 0.9 0.01 264;
+    --sidebar-border: 1 0 0 / 10%;
+    --sidebar-ring: 0.6 0.2 264;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', 'Poppins', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', 'Poppins', system-ui, sans-serif;
+    font-weight: 700;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

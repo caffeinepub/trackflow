@@ -160,6 +160,7 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getAllPaymentRequests' : IDL.Func([], [IDL.Vec(PaymentRequest)], ['query']),
+  'getAllUsers' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCoupon' : IDL.Func([IDL.Text], [IDL.Opt(Coupon)], ['query']),
@@ -184,7 +185,6 @@ export const idlService = IDL.Service({
   'isCallerApproved' : IDL.Func([], [IDL.Bool], ['query']),
   'listApprovals' : IDL.Func([], [IDL.Vec(UserApprovalInfo)], ['query']),
   'listCoupons' : IDL.Func([], [IDL.Vec(Coupon)], ['query']),
-  'listUsers' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
   'logActivity' : IDL.Func(
       [
         IDL.Nat,
@@ -204,6 +204,7 @@ export const idlService = IDL.Service({
   'requestApproval' : IDL.Func([], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'searchCoupons' : IDL.Func([IDL.Text], [IDL.Vec(Coupon)], ['query']),
+  'selfPromoteAdmin' : IDL.Func([], [], []),
   'setApproval' : IDL.Func([IDL.Principal, ApprovalStatus], [], []),
   'setUserPlan' : IDL.Func([IDL.Principal, Plan, IDL.Opt(Time)], [], []),
   'submitPaymentRequest' : IDL.Func(
@@ -387,6 +388,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(PaymentRequest)],
         ['query'],
       ),
+    'getAllUsers' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCoupon' : IDL.Func([IDL.Text], [IDL.Opt(Coupon)], ['query']),
@@ -411,7 +413,6 @@ export const idlFactory = ({ IDL }) => {
     'isCallerApproved' : IDL.Func([], [IDL.Bool], ['query']),
     'listApprovals' : IDL.Func([], [IDL.Vec(UserApprovalInfo)], ['query']),
     'listCoupons' : IDL.Func([], [IDL.Vec(Coupon)], ['query']),
-    'listUsers' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
     'logActivity' : IDL.Func(
         [
           IDL.Nat,
@@ -431,6 +432,7 @@ export const idlFactory = ({ IDL }) => {
     'requestApproval' : IDL.Func([], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'searchCoupons' : IDL.Func([IDL.Text], [IDL.Vec(Coupon)], ['query']),
+    'selfPromoteAdmin' : IDL.Func([], [], []),
     'setApproval' : IDL.Func([IDL.Principal, ApprovalStatus], [], []),
     'setUserPlan' : IDL.Func([IDL.Principal, Plan, IDL.Opt(Time)], [], []),
     'submitPaymentRequest' : IDL.Func(

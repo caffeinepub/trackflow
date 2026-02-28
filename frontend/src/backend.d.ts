@@ -97,16 +97,16 @@ export enum UserRole {
 }
 export interface backendInterface {
     /**
-     * / Admin: approve a payment request and update the user's plan.
+     * / Approve a payment request and update the user's plan.
      */
     approvePaymentRequest(requestId: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     /**
-     * / Admin: assign a role to a user.
+     * / Assigns a role to a user (requires admin privileges).
      */
     assignRole(user: Principal, role: UserRole): Promise<void>;
     /**
-     * / Admin: create a new coupon.
+     * / Create a coupon
      */
     createCoupon(code: string, discountPercent: bigint, usageLimit: bigint, expiresAt: Time | null): Promise<void>;
     /**
@@ -122,7 +122,7 @@ export interface backendInterface {
      */
     deleteActivity(activityId: bigint): Promise<void>;
     /**
-     * / Admin: delete a coupon by code.
+     * / Delete a coupon by code.
      */
     deleteCoupon(code: string): Promise<void>;
     /**
@@ -135,9 +135,13 @@ export interface backendInterface {
      */
     getActivities(userId: Principal, habitId: bigint | null, isProductive: boolean | null): Promise<Array<Activity>>;
     /**
-     * / Admin: list all payment requests (any status).
+     * / Get all payment requests.
      */
     getAllPaymentRequests(): Promise<Array<PaymentRequest>>;
+    /**
+     * / Returns all user profiles.
+     */
+    getAllUsers(): Promise<Array<UserProfile>>;
     /**
      * / Get the calling user's own profile.
      */
@@ -157,9 +161,12 @@ export interface backendInterface {
      */
     getMyPaymentRequests(): Promise<Array<PaymentRequest>>;
     /**
-     * / Admin: list all pending payment requests.
+     * / Get all pending payment requests.
      */
     getPendingPaymentRequests(): Promise<Array<PaymentRequest>>;
+    /**
+     * / Platform-wide statistics
+     */
     getPlatformStats(): Promise<PlatformStats>;
     /**
      * / Fetch another user's profile.
@@ -175,19 +182,15 @@ export interface backendInterface {
      */
     listApprovals(): Promise<Array<UserApprovalInfo>>;
     /**
-     * / Admin: list all coupons.
+     * / List all coupons.
      */
     listCoupons(): Promise<Array<Coupon>>;
-    /**
-     * / Admin: list all user profiles.
-     */
-    listUsers(): Promise<Array<UserProfile>>;
     /**
      * / Log a new activity for the calling user.
      */
     logActivity(habitId: bigint, customName: string, startTime: Time, endTime: Time, duration: bigint, isProductive: boolean, earnings: bigint, notes: string, date: Time): Promise<void>;
     /**
-     * / Admin: reject a payment request.
+     * / Reject a payment request.
      */
     rejectPaymentRequest(requestId: bigint): Promise<void>;
     /**
@@ -199,15 +202,21 @@ export interface backendInterface {
      */
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     /**
-     * / Admin: search coupons by code substring.
+     * / Search coupons by code substring.
      */
     searchCoupons(searchQuery: string): Promise<Array<Coupon>>;
+    /**
+     * / Allows the caller to promote themselves to admin ONLY when no admin
+     * / currently exists in the system (i.e. first-time bootstrap).
+     * / The caller must already be a registered user (have a profile).
+     */
+    selfPromoteAdmin(): Promise<void>;
     /**
      * / Admin: Set approval status for a user
      */
     setApproval(user: Principal, status: ApprovalStatus): Promise<void>;
     /**
-     * / Admin: manually set a user's plan.
+     * / Admin: Set a user's plan.
      */
     setUserPlan(user: Principal, plan: Plan, planExpiry: Time | null): Promise<void>;
     /**

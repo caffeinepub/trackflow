@@ -197,16 +197,16 @@ export interface backendInterface {
     _caffeineStorageUpdateGatewayPrincipals(): Promise<void>;
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     /**
-     * / Admin: approve a payment request and update the user's plan.
+     * / Approve a payment request and update the user's plan.
      */
     approvePaymentRequest(requestId: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     /**
-     * / Admin: assign a role to a user.
+     * / Assigns a role to a user (requires admin privileges).
      */
     assignRole(user: Principal, role: UserRole): Promise<void>;
     /**
-     * / Admin: create a new coupon.
+     * / Create a coupon
      */
     createCoupon(code: string, discountPercent: bigint, usageLimit: bigint, expiresAt: Time | null): Promise<void>;
     /**
@@ -222,7 +222,7 @@ export interface backendInterface {
      */
     deleteActivity(activityId: bigint): Promise<void>;
     /**
-     * / Admin: delete a coupon by code.
+     * / Delete a coupon by code.
      */
     deleteCoupon(code: string): Promise<void>;
     /**
@@ -235,9 +235,13 @@ export interface backendInterface {
      */
     getActivities(userId: Principal, habitId: bigint | null, isProductive: boolean | null): Promise<Array<Activity>>;
     /**
-     * / Admin: list all payment requests (any status).
+     * / Get all payment requests.
      */
     getAllPaymentRequests(): Promise<Array<PaymentRequest>>;
+    /**
+     * / Returns all user profiles.
+     */
+    getAllUsers(): Promise<Array<UserProfile>>;
     /**
      * / Get the calling user's own profile.
      */
@@ -257,9 +261,12 @@ export interface backendInterface {
      */
     getMyPaymentRequests(): Promise<Array<PaymentRequest>>;
     /**
-     * / Admin: list all pending payment requests.
+     * / Get all pending payment requests.
      */
     getPendingPaymentRequests(): Promise<Array<PaymentRequest>>;
+    /**
+     * / Platform-wide statistics
+     */
     getPlatformStats(): Promise<PlatformStats>;
     /**
      * / Fetch another user's profile.
@@ -275,19 +282,15 @@ export interface backendInterface {
      */
     listApprovals(): Promise<Array<UserApprovalInfo>>;
     /**
-     * / Admin: list all coupons.
+     * / List all coupons.
      */
     listCoupons(): Promise<Array<Coupon>>;
-    /**
-     * / Admin: list all user profiles.
-     */
-    listUsers(): Promise<Array<UserProfile>>;
     /**
      * / Log a new activity for the calling user.
      */
     logActivity(habitId: bigint, customName: string, startTime: Time, endTime: Time, duration: bigint, isProductive: boolean, earnings: bigint, notes: string, date: Time): Promise<void>;
     /**
-     * / Admin: reject a payment request.
+     * / Reject a payment request.
      */
     rejectPaymentRequest(requestId: bigint): Promise<void>;
     /**
@@ -299,15 +302,21 @@ export interface backendInterface {
      */
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     /**
-     * / Admin: search coupons by code substring.
+     * / Search coupons by code substring.
      */
     searchCoupons(searchQuery: string): Promise<Array<Coupon>>;
+    /**
+     * / Allows the caller to promote themselves to admin ONLY when no admin
+     * / currently exists in the system (i.e. first-time bootstrap).
+     * / The caller must already be a registered user (have a profile).
+     */
+    selfPromoteAdmin(): Promise<void>;
     /**
      * / Admin: Set approval status for a user
      */
     setApproval(user: Principal, status: ApprovalStatus): Promise<void>;
     /**
-     * / Admin: manually set a user's plan.
+     * / Admin: Set a user's plan.
      */
     setUserPlan(user: Principal, plan: Plan, planExpiry: Time | null): Promise<void>;
     /**
@@ -578,60 +587,74 @@ export class Backend implements backendInterface {
             return from_candid_vec_n15(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getAllUsers(): Promise<Array<UserProfile>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllUsers();
+                return from_candid_vec_n27(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllUsers();
+            return from_candid_vec_n27(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async getCallerUserProfile(): Promise<UserProfile | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserProfile();
-                return from_candid_opt_n27(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n30(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserProfile();
-            return from_candid_opt_n27(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n30(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCallerUserRole(): Promise<UserRole> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserRole();
-                return from_candid_UserRole_n30(this._uploadFile, this._downloadFile, result);
+                return from_candid_UserRole_n31(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserRole();
-            return from_candid_UserRole_n30(this._uploadFile, this._downloadFile, result);
+            return from_candid_UserRole_n31(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCoupon(arg0: string): Promise<Coupon | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCoupon(arg0);
-                return from_candid_opt_n32(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n33(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCoupon(arg0);
-            return from_candid_opt_n32(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n33(this._uploadFile, this._downloadFile, result);
         }
     }
     async getHabits(arg0: Principal, arg1: HabitGoal | null): Promise<Array<Habit>> {
         if (this.processError) {
             try {
-                const result = await this.actor.getHabits(arg0, to_candid_opt_n35(this._uploadFile, this._downloadFile, arg1));
-                return from_candid_vec_n36(this._uploadFile, this._downloadFile, result);
+                const result = await this.actor.getHabits(arg0, to_candid_opt_n36(this._uploadFile, this._downloadFile, arg1));
+                return from_candid_vec_n37(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.getHabits(arg0, to_candid_opt_n35(this._uploadFile, this._downloadFile, arg1));
-            return from_candid_vec_n36(this._uploadFile, this._downloadFile, result);
+            const result = await this.actor.getHabits(arg0, to_candid_opt_n36(this._uploadFile, this._downloadFile, arg1));
+            return from_candid_vec_n37(this._uploadFile, this._downloadFile, result);
         }
     }
     async getMyPaymentRequests(): Promise<Array<PaymentRequest>> {
@@ -680,14 +703,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getUserProfile(arg0);
-                return from_candid_opt_n27(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n30(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getUserProfile(arg0);
-            return from_candid_opt_n27(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n30(this._uploadFile, this._downloadFile, result);
         }
     }
     async isCallerAdmin(): Promise<boolean> {
@@ -722,41 +745,27 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.listApprovals();
-                return from_candid_vec_n41(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n42(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.listApprovals();
-            return from_candid_vec_n41(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n42(this._uploadFile, this._downloadFile, result);
         }
     }
     async listCoupons(): Promise<Array<Coupon>> {
         if (this.processError) {
             try {
                 const result = await this.actor.listCoupons();
-                return from_candid_vec_n45(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.listCoupons();
-            return from_candid_vec_n45(this._uploadFile, this._downloadFile, result);
-        }
-    }
-    async listUsers(): Promise<Array<UserProfile>> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.listUsers();
                 return from_candid_vec_n46(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.listUsers();
+            const result = await this.actor.listCoupons();
             return from_candid_vec_n46(this._uploadFile, this._downloadFile, result);
         }
     }
@@ -820,14 +829,28 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.searchCoupons(arg0);
-                return from_candid_vec_n45(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n46(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.searchCoupons(arg0);
-            return from_candid_vec_n45(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n46(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async selfPromoteAdmin(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.selfPromoteAdmin();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.selfPromoteAdmin();
+            return result;
         }
     }
     async setApproval(arg0: Principal, arg1: ApprovalStatus): Promise<void> {
@@ -901,17 +924,17 @@ export class Backend implements backendInterface {
         }
     }
 }
-function from_candid_ApprovalStatus_n44(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ApprovalStatus): ApprovalStatus {
+function from_candid_ApprovalStatus_n45(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ApprovalStatus): ApprovalStatus {
     return from_candid_variant_n19(_uploadFile, _downloadFile, value);
 }
-function from_candid_Coupon_n33(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Coupon): Coupon {
-    return from_candid_record_n34(_uploadFile, _downloadFile, value);
+function from_candid_Coupon_n34(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Coupon): Coupon {
+    return from_candid_record_n35(_uploadFile, _downloadFile, value);
 }
-function from_candid_HabitGoal_n39(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _HabitGoal): HabitGoal {
-    return from_candid_variant_n40(_uploadFile, _downloadFile, value);
+function from_candid_HabitGoal_n40(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _HabitGoal): HabitGoal {
+    return from_candid_variant_n41(_uploadFile, _downloadFile, value);
 }
-function from_candid_Habit_n37(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Habit): Habit {
-    return from_candid_record_n38(_uploadFile, _downloadFile, value);
+function from_candid_Habit_n38(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Habit): Habit {
+    return from_candid_record_n39(_uploadFile, _downloadFile, value);
 }
 function from_candid_PaymentRequest_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _PaymentRequest): PaymentRequest {
     return from_candid_record_n17(_uploadFile, _downloadFile, value);
@@ -925,14 +948,14 @@ function from_candid_PlanCycle_n24(_uploadFile: (file: ExternalBlob) => Promise<
 function from_candid_Plan_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Plan): Plan {
     return from_candid_variant_n22(_uploadFile, _downloadFile, value);
 }
-function from_candid_UserApprovalInfo_n42(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserApprovalInfo): UserApprovalInfo {
-    return from_candid_record_n43(_uploadFile, _downloadFile, value);
+function from_candid_UserApprovalInfo_n43(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserApprovalInfo): UserApprovalInfo {
+    return from_candid_record_n44(_uploadFile, _downloadFile, value);
 }
 function from_candid_UserProfile_n28(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserProfile): UserProfile {
     return from_candid_record_n29(_uploadFile, _downloadFile, value);
 }
-function from_candid_UserRole_n30(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
-    return from_candid_variant_n31(_uploadFile, _downloadFile, value);
+function from_candid_UserRole_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
+    return from_candid_variant_n32(_uploadFile, _downloadFile, value);
 }
 function from_candid__CaffeineStorageRefillResult_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: __CaffeineStorageRefillResult): _CaffeineStorageRefillResult {
     return from_candid_record_n5(_uploadFile, _downloadFile, value);
@@ -946,11 +969,11 @@ function from_candid_opt_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
 function from_candid_opt_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Time]): Time | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
+function from_candid_opt_n30(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
     return value.length === 0 ? null : from_candid_UserProfile_n28(_uploadFile, _downloadFile, value[0]);
 }
-function from_candid_opt_n32(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Coupon]): Coupon | null {
-    return value.length === 0 ? null : from_candid_Coupon_n33(_uploadFile, _downloadFile, value[0]);
+function from_candid_opt_n33(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Coupon]): Coupon | null {
+    return value.length === 0 ? null : from_candid_Coupon_n34(_uploadFile, _downloadFile, value[0]);
 }
 function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [boolean]): boolean | null {
     return value.length === 0 ? null : value[0];
@@ -1021,7 +1044,7 @@ function from_candid_record_n29(_uploadFile: (file: ExternalBlob) => Promise<Uin
         lastLogin: record_opt_to_undefined(from_candid_opt_n26(_uploadFile, _downloadFile, value.lastLogin))
     };
 }
-function from_candid_record_n34(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n35(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: bigint;
     expiresAt: [] | [_Time];
     code: string;
@@ -1048,7 +1071,7 @@ function from_candid_record_n34(_uploadFile: (file: ExternalBlob) => Promise<Uin
         usageLimit: value.usageLimit
     };
 }
-function from_candid_record_n38(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n39(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: bigint;
     goalType: _HabitGoal;
     userId: Principal;
@@ -1071,7 +1094,7 @@ function from_candid_record_n38(_uploadFile: (file: ExternalBlob) => Promise<Uin
 } {
     return {
         id: value.id,
-        goalType: from_candid_HabitGoal_n39(_uploadFile, _downloadFile, value.goalType),
+        goalType: from_candid_HabitGoal_n40(_uploadFile, _downloadFile, value.goalType),
         userId: value.userId,
         name: value.name,
         createdAt: value.createdAt,
@@ -1081,7 +1104,7 @@ function from_candid_record_n38(_uploadFile: (file: ExternalBlob) => Promise<Uin
         streakCount: value.streakCount
     };
 }
-function from_candid_record_n43(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n44(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     status: _ApprovalStatus;
     principal: Principal;
 }): {
@@ -1089,7 +1112,7 @@ function from_candid_record_n43(_uploadFile: (file: ExternalBlob) => Promise<Uin
     principal: Principal;
 } {
     return {
-        status: from_candid_ApprovalStatus_n44(_uploadFile, _downloadFile, value.status),
+        status: from_candid_ApprovalStatus_n45(_uploadFile, _downloadFile, value.status),
         principal: value.principal
     };
 }
@@ -1130,7 +1153,7 @@ function from_candid_variant_n25(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): PlanCycle {
     return "monthly" in value ? PlanCycle.monthly : "yearly" in value ? PlanCycle.yearly : value;
 }
-function from_candid_variant_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n32(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     admin: null;
 } | {
     user: null;
@@ -1139,7 +1162,7 @@ function from_candid_variant_n31(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): UserRole {
     return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
 }
-function from_candid_variant_n40(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n41(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     daily: null;
 } | {
     weekly: null;
@@ -1149,17 +1172,17 @@ function from_candid_variant_n40(_uploadFile: (file: ExternalBlob) => Promise<Ui
 function from_candid_vec_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_PaymentRequest>): Array<PaymentRequest> {
     return value.map((x)=>from_candid_PaymentRequest_n16(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Habit>): Array<Habit> {
-    return value.map((x)=>from_candid_Habit_n37(_uploadFile, _downloadFile, x));
-}
-function from_candid_vec_n41(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_UserApprovalInfo>): Array<UserApprovalInfo> {
-    return value.map((x)=>from_candid_UserApprovalInfo_n42(_uploadFile, _downloadFile, x));
-}
-function from_candid_vec_n45(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Coupon>): Array<Coupon> {
-    return value.map((x)=>from_candid_Coupon_n33(_uploadFile, _downloadFile, x));
-}
-function from_candid_vec_n46(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_UserProfile>): Array<UserProfile> {
+function from_candid_vec_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_UserProfile>): Array<UserProfile> {
     return value.map((x)=>from_candid_UserProfile_n28(_uploadFile, _downloadFile, x));
+}
+function from_candid_vec_n37(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Habit>): Array<Habit> {
+    return value.map((x)=>from_candid_Habit_n38(_uploadFile, _downloadFile, x));
+}
+function from_candid_vec_n42(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_UserApprovalInfo>): Array<UserApprovalInfo> {
+    return value.map((x)=>from_candid_UserApprovalInfo_n43(_uploadFile, _downloadFile, x));
+}
+function from_candid_vec_n46(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Coupon>): Array<Coupon> {
+    return value.map((x)=>from_candid_Coupon_n34(_uploadFile, _downloadFile, x));
 }
 function to_candid_ApprovalStatus_n51(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ApprovalStatus): _ApprovalStatus {
     return to_candid_variant_n52(_uploadFile, _downloadFile, value);
@@ -1194,7 +1217,7 @@ function to_candid_opt_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Arr
 function to_candid_opt_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: boolean | null): [] | [boolean] {
     return value === null ? candid_none() : candid_some(value);
 }
-function to_candid_opt_n35(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: HabitGoal | null): [] | [_HabitGoal] {
+function to_candid_opt_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: HabitGoal | null): [] | [_HabitGoal] {
     return value === null ? candid_none() : candid_some(to_candid_HabitGoal_n11(_uploadFile, _downloadFile, value));
 }
 function to_candid_opt_n53(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: PlanCycle | null): [] | [_PlanCycle] {

@@ -1,157 +1,256 @@
-import { useState } from 'react';
-import { useListUsers, useSetUserPlan } from '../../hooks/useQueries';
-import { Plan } from '../../backend';
-import { Principal } from '@dfinity/principal';
-import { Search, Copy, CheckCircle } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Search, Copy, Users, AlertCircle, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useGetAllUsers, useSetUserPlan } from '@/hooks/useQueries';
+import { Plan } from '@/backend';
+import { Principal } from '@dfinity/principal';
 import { toast } from 'sonner';
 
-const PLAN_COLORS: Record<string, string> = {
-  free: 'bg-slate-100 text-slate-600',
-  starter: 'bg-indigo-100 text-indigo-700',
-  premium: 'bg-purple-100 text-purple-700',
+const planBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
+  free: 'secondary',
+  starter: 'outline',
+  premium: 'default',
 };
 
-function formatDate(ts: bigint | undefined): string {
+const planLabels: Record<string, string> = {
+  free: 'Free',
+  starter: 'Starter',
+  premium: 'Premium',
+};
+
+function formatDate(ts: bigint | undefined | null): string {
   if (!ts) return '—';
-  return new Date(Number(ts) / 1_000_000).toLocaleDateString('en-IN', {
-    day: 'numeric', month: 'short', year: 'numeric',
+  const ms = Number(ts) / 1_000_000;
+  return new Date(ms).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
   });
 }
 
 export default function UsersTable() {
-  const { data: users = [], isLoading } = useListUsers();
-  const setUserPlan = useSetUserPlan();
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [pendingPlan, setPendingPlan] = useState<Record<string, Plan>>({});
+  const [savingPrincipal, setSavingPrincipal] = useState<string | null>(null);
 
-  const filtered = users.filter(u =>
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    u.principal.toString().includes(search)
-  );
+  const { data: users, isLoading, isError, error } = useGetAllUsers();
+  const setUserPlan = useSetUserPlan();
 
-  const handleCopyPrincipal = (principal: string) => {
+  const handleCopy = (principal: string) => {
     navigator.clipboard.writeText(principal);
     setCopiedId(principal);
-    setTimeout(() => setCopiedId(null), 2000);
-    toast.success('Principal copied!');
+    setTimeout(() => setCopiedId(null), 1500);
   };
 
-  const handleChangePlan = async (userPrincipal: string, plan: string) => {
-    if (!confirm(`Change this user's plan to ${plan}?`)) return;
+  const handlePlanChange = (principal: string, plan: Plan) => {
+    setPendingPlan((prev) => ({ ...prev, [principal]: plan }));
+  };
+
+  const handlePlanSave = async (principal: string, currentPlan: Plan) => {
+    const newPlan = pendingPlan[principal] ?? currentPlan;
+    setSavingPrincipal(principal);
+
     try {
       await setUserPlan.mutateAsync({
-        user: Principal.fromText(userPrincipal),
-        plan: plan as Plan,
+        user: Principal.fromText(principal),
+        plan: newPlan,
         planExpiry: null,
       });
-      toast.success(`Plan updated to ${plan}`);
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to update plan');
+      // Clear the pending change for this user after successful save
+      setPendingPlan((prev) => {
+        const next = { ...prev };
+        delete next[principal];
+        return next;
+      });
+      toast.success(`Plan updated to ${planLabels[String(newPlan)] ?? String(newPlan)} successfully.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const friendlyMsg = msg.includes('Unauthorized') || msg.includes('admin')
+        ? 'Admin privileges required. Make sure you are logged in as an admin.'
+        : msg;
+      toast.error(`Failed to save plan: ${friendlyMsg}`);
+    } finally {
+      setSavingPrincipal(null);
     }
   };
 
+  const filtered = (users ?? []).filter(
+    (u) =>
+      u.name.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase()) ||
+      u.principal.toString().toLowerCase().includes(search.toLowerCase()),
+  );
+
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}
-      </div>
+      <Card>
+        <CardContent className="py-12 text-center text-muted-foreground">
+          Loading users…
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isError) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+            <p className="font-medium text-destructive">Failed to load users.</p>
+            <p className="text-sm text-muted-foreground">{msg}</p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <Input
-          placeholder="Search by name, email, or principal..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
-
-      <Card className="border-0 shadow-sm overflow-hidden">
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <CardTitle className="flex items-center gap-2">
+          <Users className="h-5 w-5" />
+          All Users
+          <Badge variant="secondary" className="ml-1">
+            {filtered.length}
+          </Badge>
+        </CardTitle>
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search users…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
         {filtered.length === 0 ? (
-          <CardContent className="py-12 text-center">
-            <p className="text-slate-400">No users found</p>
-          </CardContent>
+          <div className="py-12 flex flex-col items-center gap-2 text-muted-foreground">
+            <Users className="h-8 w-8 opacity-40" />
+            <p>No users found</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-100">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Principal</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Phone</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Plan</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Joined</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Change Plan</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {filtered.map(user => {
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Principal</TableHead>
+                  <TableHead>Current Plan</TableHead>
+                  <TableHead>Change Plan</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead>Last Login</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((user) => {
                   const principalStr = user.principal.toString();
+                  const currentPlan = user.plan as unknown as Plan;
+                  const selectedPlan = pendingPlan[principalStr] ?? currentPlan;
+                  const isDirty =
+                    pendingPlan[principalStr] !== undefined &&
+                    pendingPlan[principalStr] !== currentPlan;
+                  const isSaving = savingPrincipal === principalStr;
+
                   return (
-                    <tr key={principalStr} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="text-sm font-medium text-slate-800">{user.name}</p>
-                          <p className="text-xs text-slate-400">{user.email}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-mono text-slate-500">
-                            {principalStr.slice(0, 10)}...
+                    <TableRow key={principalStr}>
+                      <TableCell className="font-medium">{user.name || '—'}</TableCell>
+                      <TableCell className="text-muted-foreground">{user.email || '—'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <span className="font-mono text-xs text-muted-foreground max-w-[120px] truncate">
+                            {principalStr}
                           </span>
                           <button
-                            onClick={() => handleCopyPrincipal(principalStr)}
-                            className="text-slate-300 hover:text-slate-500 transition-colors"
+                            onClick={() => handleCopy(principalStr)}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            title="Copy principal"
                           >
-                            {copiedId === principalStr ? (
-                              <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
+                            <Copy className="h-3.5 w-3.5" />
                           </button>
+                          {copiedId === principalStr && (
+                            <span className="text-xs text-green-600">Copied!</span>
+                          )}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-500">{user.phone || '—'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs font-semibold px-2 py-1 rounded-full ${PLAN_COLORS[user.plan as string] || 'bg-slate-100 text-slate-600'}`}>
-                          {String(user.plan).charAt(0).toUpperCase() + String(user.plan).slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-500">{formatDate(user.createdAt)}</td>
-                      <td className="px-4 py-3">
-                        <Select
-                          value={user.plan as string}
-                          onValueChange={v => handleChangePlan(principalStr, v)}
-                        >
-                          <SelectTrigger className="h-8 w-28 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="free">Free</SelectItem>
-                            <SelectItem value="starter">Starter</SelectItem>
-                            <SelectItem value="premium">Premium</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                    </tr>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={planBadgeVariant[String(currentPlan)] ?? 'secondary'}>
+                          {planLabels[String(currentPlan)] ?? String(currentPlan)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={String(selectedPlan)}
+                            onValueChange={(val) =>
+                              handlePlanChange(principalStr, val as Plan)
+                            }
+                            disabled={isSaving}
+                          >
+                            <SelectTrigger className="w-28 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="free">Free</SelectItem>
+                              <SelectItem value="starter">Starter</SelectItem>
+                              <SelectItem value="premium">Premium</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs"
+                            variant={isDirty ? 'default' : 'outline'}
+                            onClick={() => handlePlanSave(principalStr, currentPlan)}
+                            disabled={isSaving}
+                          >
+                            {isSaving ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                Saving…
+                              </>
+                            ) : (
+                              'Save'
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {formatDate(user.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {formatDate(user.lastLogin)}
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
-      </Card>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

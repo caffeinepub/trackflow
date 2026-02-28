@@ -1,78 +1,39 @@
 {
   "kind": "build_request",
-  "title": "Fix blank login page and Internet Identity authentication",
+  "title": "Fix non-responsive buttons on /pricing page",
   "projectName": "TrackFlow",
-  "priority": "high",
+  "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-13",
-      "text": "Fix the LoginPage so it renders correctly on initial load without showing a blank screen. Ensure the Internet Identity authentication flow initializes properly, handles the AuthClient loading state, and displays the login UI (app name, tagline, and 'Login with Internet Identity' button) before any authentication check completes.",
+      "id": "REQ-1",
+      "text": "Fix all non-responsive button click handlers on the /pricing page (PricingPage.tsx) so that plan selection buttons, profile setup actions, and navigation-to-payment buttons all respond correctly to user interaction.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-4",
+          "msg-6"
         ],
         "quotes": [
-          "it is blank the login page is not working i guess fix the problems"
+          "page is fully loaded but there buttons are not working",
+          "the /pricing page loads fine visually, but the buttons on the page aren't responding when clicked"
         ]
       },
       "acceptanceCriteria": [
-        "Navigating to the root URL '/' displays the TrackFlow login page with a visible 'Login with Internet Identity' button instead of a blank screen",
-        "The login page does not remain blank while AuthClient is initializing — a loading spinner or the full login UI is shown immediately",
-        "Clicking 'Login with Internet Identity' triggers the Internet Identity popup correctly",
-        "After successful authentication, the user is redirected to the pricing page (/pricing)",
-        "If the user is already authenticated on page load, they are automatically redirected to /dashboard without seeing the login page"
-      ]
-    },
-    {
-      "id": "REQ-14",
-      "text": "Audit and fix the App.tsx route tree and auth guard logic to ensure that unauthenticated users are correctly redirected to the login page and authenticated users are not blocked or redirected back to login. Fix any router initialization issues that may cause the entire app to render blank (e.g., missing router provider, incorrect route configuration, or premature auth checks before identity is resolved).",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "it is blank the login page is not working i guess fix the problems"
-        ]
-      },
-      "acceptanceCriteria": [
-        "The app never renders a completely blank white page on any route",
-        "Unauthenticated users visiting any protected route (e.g., /dashboard) are redirected to /login",
-        "Authenticated users visiting /login or / are redirected to /dashboard",
-        "The auth guard waits for Internet Identity initialization before performing redirects, preventing redirect loops or flashes of blank content",
-        "All existing routes (/, /pricing, /payment, /dashboard, /analytics, /activities, /habits, /profile, /admin) resolve correctly"
-      ]
-    },
-    {
-      "id": "REQ-15",
-      "text": "Ensure the useInternetIdentity hook and useActor hook are correctly wired in the component tree so that the identity state is available to LoginPage and all protected pages on initial mount. Fix any context provider ordering issues in main.tsx that might prevent the identity from being accessible.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "it is blank the login page is not working i guess fix the problems"
-        ]
-      },
-      "acceptanceCriteria": [
-        "useInternetIdentity() returns a valid identity state (isAuthenticated, login, logout) on the LoginPage without throwing context errors",
-        "No 'Cannot read properties of undefined' or missing context errors appear in the browser console on initial load",
-        "The QueryClientProvider and InternetIdentityProvider correctly wrap the router/app so all pages have access to both contexts",
-        "The backend actor is created successfully after login and queries to the backend (e.g., getUserProfile) work without actor initialization errors"
+        "Clicking a plan tier button on /pricing triggers the expected action (profile setup flow or navigation to payment page) without errors.",
+        "All interactive buttons on /pricing are visually clickable and respond on click.",
+        "No console errors are thrown when interacting with any button on the /pricing page.",
+        "Navigation to the payment flow from /pricing works correctly after clicking a paid plan button."
       ]
     }
   ],
   "constraints": [
-    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
-    "Preserve all existing route paths and page components — only fix initialization and rendering issues"
+    "Do not alter the visual layout or design of the /pricing page.",
+    "Do not modify any files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui."
   ],
   "nonGoals": [
-    "Changing the visual design or layout of the login page",
-    "Adding new authentication providers",
-    "Modifying backend logic or data models",
-    "Changing plan pricing or payment flow"
+    "Changes to any page other than /pricing.",
+    "Backend logic or data model changes.",
+    "Modifying the pricing tiers, plan names, or pricing amounts."
   ],
   "imageRequirements": {
     "required": [],

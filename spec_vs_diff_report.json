@@ -1,32 +1,14 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T05:02:02.212Z",
-  "summary": "The diff modifies App.tsx and LoginPage.tsx to address the three requirements. App.tsx introduces a proper router with hash history, public/protected layout guards, and all required routes. LoginPage.tsx renders the full login UI immediately and handles the initializing state. The changes appear to address REQ-13, REQ-14, and REQ-15 substantially, though some specific acceptance criteria have nuances worth noting.",
-  "missing_requirements": [
-    {
-      "id": "REQ-13",
-      "requirement": "After successful authentication, the user is redirected to the pricing page (/pricing)",
-      "reason": "LoginPage.tsx's useEffect redirects to '/dashboard' after authentication, not '/pricing' as required by the AC. The post-login redirect target is hardcoded as '/dashboard' instead of '/pricing'.",
-      "evidence": [
-        "frontend/src/pages/LoginPage.tsx"
-      ]
-    },
-    {
-      "id": "REQ-14",
-      "requirement": "The auth guard waits for Internet Identity initialization before performing redirects, preventing redirect loops or flashes of blank content",
-      "reason": "In ProtectedLayout and PublicLayout, the navigate() call is made synchronously during render rather than inside a useEffect, which may cause render-time side effects and does not cleanly wait for initialization to fully settle before redirecting.",
-      "evidence": [
-        "frontend/src/App.tsx"
-      ]
-    }
-  ],
+  "generatedAt": "2026-02-28T13:52:21.784Z",
+  "summary": "The diff modifies PricingPage.tsx to replace window.location.hash navigation with TanStack Router's useNavigate hook, which directly addresses REQ-1 (fixing non-responsive button click handlers on the /pricing page). The file summary explicitly states this change fixes non-responsive buttons. No protected files are modified. No hallucinated features are apparent.",
+  "missing_requirements": [],
   "hallucinated_features": [],
-  "confidence": 0.75,
+  "confidence": 0.88,
   "changed_files": [
     "frontend-file-summaries.txt",
-    "frontend/src/App.tsx",
-    "frontend/src/pages/LoginPage.tsx",
+    "frontend/src/pages/PricingPage.tsx",
     "project_state.json"
   ]
 }

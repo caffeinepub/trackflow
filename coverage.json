@@ -1,56 +1,34 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T05:02:02.216Z",
+  "generatedAt": "2026-02-28T13:52:21.787Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 3,
-    "implemented": 2,
+    "total": 1,
+    "implemented": 1,
     "items": [
       {
-        "id": "REQ-13",
-        "summary": "Fix the LoginPage so it renders correctly on initial load without showing a blank screen. Ensure the Internet Identity authentication flow initializes properly, handles the AuthClient loading state, and displays the login UI (app name, tagline, and 'Login with Internet Identity' button) before any authentication check completes.",
+        "id": "REQ-1",
+        "summary": "Fix all non-responsive button click handlers on the /pricing page (PricingPage.tsx) so that plan selection buttons, profile setup actions, and navigation-to-payment buttons all respond correctly to user interaction.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/LoginPage.tsx"
+          "frontend/src/pages/PricingPage.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/LoginPage.tsx"
+          "frontend/src/pages/PricingPage.tsx"
         ]
-      },
-      {
-        "id": "REQ-14",
-        "summary": "Audit and fix the App.tsx route tree and auth guard logic to ensure that unauthenticated users are correctly redirected to the login page and authenticated users are not blocked or redirected back to login. Fix any router initialization issues that may cause the entire app to render blank (e.g., missing router provider, incorrect route configuration, or premature auth checks before identity is resolved).",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/App.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/App.tsx"
-        ]
-      },
-      {
-        "id": "REQ-15",
-        "summary": "Ensure the useInternetIdentity hook and useActor hook are correctly wired in the component tree so that the identity state is available to LoginPage and all protected pages on initial mount. Fix any context provider ordering issues in main.tsx that might prevent the identity from being accessible.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/main.tsx"
-        ],
-        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
     "build-request.json",
-    "build-template/README.md",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/App.tsx",
-    "frontend/src/pages/LoginPage.tsx",
+    "frontend/src/pages/PricingPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

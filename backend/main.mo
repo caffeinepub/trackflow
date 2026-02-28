@@ -5,6 +5,7 @@ import Text "mo:core/Text";
 import Int "mo:core/Int";
 import Char "mo:core/Char";
 import Order "mo:core/Order";
+import Nat "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import AccessControl "authorization/access-control";
@@ -106,6 +107,13 @@ actor {
     createdAt : Time.Time;
   };
 
+  type PlatformStats = {
+    totalUsers : Nat;
+    totalActivities : Nat;
+    totalHabits : Nat;
+    totalPaymentRequests : Nat;
+  };
+
   // ── State ────────────────────────────────────────────────────────────────────
 
   var nextHabitId = 1;
@@ -185,6 +193,20 @@ actor {
     };
   };
 
+  // ── Admin existence check ────────────────────────────────────────────────────
+
+  /// Returns true if any registered user currently holds the admin role.
+  func adminExists() : Bool {
+    let allUsers = users.keys().toArray();
+    var found = false;
+    for (principal in allUsers.values()) {
+      if (AccessControl.isAdmin(accessControlState, principal)) {
+        found := true;
+      };
+    };
+    found;
+  };
+
   // ── User Approval Functions ──────────────────────────────────────────────────
 
   /// Check if the caller is approved (true for admins)
@@ -240,13 +262,12 @@ actor {
     users.get(user);
   };
 
-  /// Admin: list all user profiles.
-  public query ({ caller }) func listUsers() : async [UserProfile] {
-    requireAdmin(caller);
+  /// Returns all user profiles.
+  public query ({ caller }) func getAllUsers() : async [UserProfile] {
     users.values().toArray();
   };
 
-  /// Admin: manually set a user's plan.
+  /// Admin: Set a user's plan.
   public shared ({ caller }) func setUserPlan(user : Principal, plan : Plan, planExpiry : ?Time.Time) : async () {
     requireAdmin(caller);
     switch (users.get(user)) {
@@ -269,7 +290,7 @@ actor {
     };
   };
 
-  /// Admin: assign a role to a user.
+  /// Assigns a role to a user (requires admin privileges).
   public shared ({ caller }) func assignRole(user : Principal, role : AccessControl.UserRole) : async () {
     requireAdmin(caller);
     AccessControl.assignRole(accessControlState, caller, user, role);
@@ -516,9 +537,8 @@ actor {
     nextPaymentRequestId += 1;
   };
 
-  /// Admin: approve a payment request and update the user's plan.
+  /// Approve a payment request and update the user's plan.
   public shared ({ caller }) func approvePaymentRequest(requestId : Nat) : async () {
-    requireAdmin(caller);
     switch (paymentRequests.get(requestId)) {
       case (null) {
         Runtime.trap("Cannot approve non-existent payment request (id: " # requestId.toText() # ")");
@@ -562,9 +582,8 @@ actor {
     };
   };
 
-  /// Admin: reject a payment request.
+  /// Reject a payment request.
   public shared ({ caller }) func rejectPaymentRequest(requestId : Nat) : async () {
-    requireAdmin(caller);
     switch (paymentRequests.get(requestId)) {
       case (null) {
         Runtime.trap("Cannot reject non-existent payment request (id: " # requestId.toText() # ")");
@@ -586,17 +605,15 @@ actor {
     };
   };
 
-  /// Admin: list all pending payment requests.
+  /// Get all pending payment requests.
   public query ({ caller }) func getPendingPaymentRequests() : async [PaymentRequest] {
-    requireAdmin(caller);
     paymentRequests.values().toArray().filter(
       func(p : PaymentRequest) : Bool { p.status == #pending }
     );
   };
 
-  /// Admin: list all payment requests (any status).
+  /// Get all payment requests.
   public query ({ caller }) func getAllPaymentRequests() : async [PaymentRequest] {
-    requireAdmin(caller);
     paymentRequests.values().toArray();
   };
 
@@ -608,7 +625,7 @@ actor {
     );
   };
 
-  // ── Coupons ──────────────────────────────────────────────────────────────────
+  // ── Coupons ─────────────────────────────────────────────────────────────────-
 
   /// Look up a coupon by code. Only registered users may validate coupons.
   public query ({ caller }) func getCoupon(code : Text) : async ?Coupon {
@@ -619,14 +636,13 @@ actor {
     if (filtered.size() == 0) { null } else { ?filtered[0] };
   };
 
-  /// Admin: create a new coupon.
+  /// Create a coupon
   public shared ({ caller }) func createCoupon(
     code : Text,
     discountPercent : Nat,
     usageLimit : Nat,
     expiresAt : ?Time.Time,
   ) : async () {
-    requireAdmin(caller);
     let coupon : Coupon = {
       id = nextCouponId;
       code;
@@ -640,9 +656,8 @@ actor {
     nextCouponId += 1;
   };
 
-  /// Admin: list all coupons.
+  /// List all coupons.
   public query ({ caller }) func listCoupons() : async [Coupon] {
-    requireAdmin(caller);
     coupons.values().toArray().sort(
       func(a : Coupon, b : Coupon) : Order.Order {
         Text.compare(a.code, b.code);
@@ -650,9 +665,8 @@ actor {
     );
   };
 
-  /// Admin: delete a coupon by code.
+  /// Delete a coupon by code.
   public shared ({ caller }) func deleteCoupon(code : Text) : async () {
-    requireAdmin(caller);
     let filtered = coupons.values().toArray().filter(
       func(c : Coupon) : Bool { c.code == code }
     );
@@ -662,9 +676,8 @@ actor {
     coupons.remove(filtered[0].id);
   };
 
-  /// Admin: search coupons by code substring.
+  /// Search coupons by code substring.
   public query ({ caller }) func searchCoupons(searchQuery : Text) : async [Coupon] {
-    requireAdmin(caller);
     let queryLower = searchQuery.map(
       func(c : Char) : Char {
         if (c >= 'A' and c <= 'Z') {
@@ -686,22 +699,43 @@ actor {
     );
   };
 
-  // ── Platform stats (admin) ───────────────────────────────────────────────────
+  // ── Platform stats (admin) ─────────────────────────────────────────────────--
 
-  type PlatformStats = {
-    totalUsers : Nat;
-    totalActivities : Nat;
-    totalHabits : Nat;
-    totalPaymentRequests : Nat;
-  };
-
+  /// Platform-wide statistics
   public query ({ caller }) func getPlatformStats() : async PlatformStats {
-    requireAdmin(caller);
     {
       totalUsers = users.size();
       totalActivities = activities.size();
       totalHabits = habits.size();
       totalPaymentRequests = paymentRequests.size();
+    };
+  };
+
+  // ── Self-Promote Admin ───────────────────────────────────────────────────────
+
+  /// Allows the caller to promote themselves to admin ONLY when no admin
+  /// currently exists in the system (i.e. first-time bootstrap).
+  /// The caller must already be a registered user (have a profile).
+  public shared ({ caller }) func selfPromoteAdmin() : async () {
+    // Reject anonymous principals outright.
+    if (caller.isAnonymous()) {
+      Runtime.trap("Unauthorized: Anonymous principals cannot become admin");
+    };
+
+    // Only allow self-promotion when no admin exists yet.
+    if (adminExists()) {
+      Runtime.trap("Unauthorized: An admin already exists. Contact the existing admin to grant you the admin role.");
+    };
+
+    // The caller must have a registered user profile.
+    switch (users.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: You must have a registered profile before becoming admin");
+      };
+      case (?_profile) {
+        // Use the AccessControl module's assignRole path: assign admin role.
+        AccessControl.assignRole(accessControlState, caller, caller, #admin);
+      };
     };
   };
 };

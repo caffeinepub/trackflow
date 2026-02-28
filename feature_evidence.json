@@ -2,10 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-fix-the-loginpage-so-it-renders-correctly-on-initial-load-without-showing-a-blank-screen-ensure-the-internet-identity-authentication-flow-initializes-properly-handles-the-authclient-loading-state-and-displays-the-login-ui-app-name-tagline-and-login-with-internet-identity-button-before-any-authentication-check-completes",
-      "featureTitle": "Fix the LoginPage so it renders correctly on initial load without showing a blank screen. Ensure the Internet Identity authentication flow initializes properly, handles the AuthClient loading state, and displays the login UI (app name, tagline, and 'Login with Internet Identity' button) before any authentication check completes.",
+      "featureId": "feature-fix-all-non-responsive-button-click-handlers-on-the-pricing-page-pricingpage-tsx-so-that-plan-selection-buttons-profile-setup-actions-and-navigation-to-payment-buttons-all-respond-correctly-to-user-interaction",
+      "featureTitle": "Fix all non-responsive button click handlers on the /pricing page (PricingPage.tsx) so that plan selection buttons, profile setup actions, and navigation-to-payment buttons all respond correctly to user interaction.",
       "files": [
-        "frontend/src/pages/LoginPage.tsx"
+        "frontend/src/pages/PricingPage.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -18,28 +18,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-13"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-audit-and-fix-the-app-tsx-route-tree-and-auth-guard-logic-to-ensure-that-unauthenticated-users-are-correctly-redirected-to-the-login-page-and-authenticated-users-are-not-blocked-or-redirected-back-to-login-fix-any-router-initialization-issues-that-may-cause-the-entire-app-to-render-blank-e-g-missing-router-provider-incorrect-route-configuration-or-premature-auth-checks-before-identity-is-resolved",
-      "featureTitle": "Audit and fix the App.tsx route tree and auth guard logic to ensure that unauthenticated users are correctly redirected to the login page and authenticated users are not blocked or redirected back to login. Fix any router initialization issues that may cause the entire app to render blank (e.g., missing router provider, incorrect route configuration, or premature auth checks before identity is resolved).",
-      "files": [
-        "frontend/src/App.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "blob-storage@4.0.0",
-        "user-approval@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-14"
+        "REQ-1"
       ],
       "confidence": "high"
     }

@@ -1,58 +1,22 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix blank login page and Internet Identity authentication",
+  "title": "Fix non-responsive buttons on /pricing page",
   "requirements": [
     {
-      "id": "REQ-13",
-      "summary": "Fix LoginPage to render correctly on initial load and display login UI immediately without blank screen",
+      "id": "REQ-1",
+      "summary": "Fix all non-responsive button click handlers on the /pricing page so that plan selection buttons, profile setup actions, and navigation-to-payment buttons all respond correctly to user interaction",
       "acceptanceCriteria": [
-        "Navigating to the root URL '/' displays the TrackFlow login page with a visible 'Login with Internet Identity' button instead of a blank screen",
-        "The login page does not remain blank while AuthClient is initializing — a loading spinner or the full login UI is shown immediately",
-        "Clicking 'Login with Internet Identity' triggers the Internet Identity popup correctly",
-        "After successful authentication, the user is redirected to the pricing page (/pricing)",
-        "If the user is already authenticated on page load, they are automatically redirected to /dashboard without seeing the login page"
+        "Clicking a plan tier button on /pricing triggers the expected action (profile setup flow or navigation to payment page) without errors.",
+        "All interactive buttons on /pricing are visually clickable and respond on click.",
+        "No console errors are thrown when interacting with any button on the /pricing page.",
+        "Navigation to the payment flow from /pricing works correctly after clicking a paid plan button."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/LoginPage.tsx",
+          "path": "frontend/src/pages/PricingPage.tsx",
           "operation": "modify",
-          "description": "Fix the component to render the login UI (TrackFlow branding, tagline, and 'Login with Internet Identity' button) immediately on mount instead of showing a blank screen. Remove any conditional rendering that waits for authentication state to be resolved before displaying the UI. Ensure the component shows a loading spinner only during the actual login process (loginStatus === 'logging-in'), not during initial AuthClient initialization. Add proper error handling for login failures and ensure successful login redirects to /pricing as specified in the BuildRequest."
-        }
-      ]
-    },
-    {
-      "id": "REQ-14",
-      "summary": "Fix App.tsx route tree and auth guard to prevent blank screens and ensure correct redirects",
-      "acceptanceCriteria": [
-        "The app never renders a completely blank white page on any route",
-        "Unauthenticated users visiting any protected route (e.g., /dashboard) are redirected to /login",
-        "Authenticated users visiting /login or / are redirected to /dashboard",
-        "The auth guard waits for Internet Identity initialization before performing redirects, preventing redirect loops or flashes of blank content",
-        "All existing routes (/, /pricing, /payment, /dashboard, /analytics, /activities, /habits, /profile, /admin) resolve correctly"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "Fix the route configuration and authentication guard logic to prevent blank screens. Ensure the router renders a loading state while Internet Identity is initializing (loginStatus === 'initializing') instead of attempting redirects or rendering blank content. Fix the auth guard in the ProtectedLayout component to wait for identity resolution before deciding on redirects. Ensure authenticated users at / or /login are redirected to /dashboard, and unauthenticated users at protected routes are redirected to /login. Verify all route paths are correctly configured and the router provider is properly initialized. Add a root-level loading fallback that displays while the authentication state is being determined to prevent any blank screen flashes."
-        }
-      ]
-    },
-    {
-      "id": "REQ-15",
-      "summary": "Verify context provider ordering and identity state availability throughout the component tree",
-      "acceptanceCriteria": [
-        "useInternetIdentity() returns a valid identity state (isAuthenticated, login, logout) on the LoginPage without throwing context errors",
-        "No 'Cannot read properties of undefined' or missing context errors appear in the browser console on initial load",
-        "The QueryClientProvider and InternetIdentityProvider correctly wrap the router/app so all pages have access to both contexts",
-        "The backend actor is created successfully after login and queries to the backend (e.g., getUserProfile) work without actor initialization errors"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/main.tsx",
-          "operation": "modify",
-          "description": "Verify and fix the context provider ordering to ensure InternetIdentityProvider and QueryClientProvider correctly wrap the App component. Confirm that the provider hierarchy allows all child components (including LoginPage and protected routes) to access both the identity context and query client without errors. Add error boundaries if needed to catch and display any context-related initialization errors gracefully instead of showing a blank screen. Ensure the root element mounts correctly and the provider tree is initialized before any route resolution occurs."
+          "description": "Implement missing button click handlers: add handleSelectPlan to store selected plan in state and trigger profile setup modal for new users or navigate directly to payment for existing users; implement handleSetupProfile to call saveCallerUserProfile mutation with form data and then navigate to payment; implement handleProceedToPayment using TanStack Router's useNavigate hook to navigate to /payment with selected plan and cycle as URL parameters; ensure all button onClick handlers are properly bound to these functions; add proper error handling and loading states for all async operations; ensure the profile setup modal conditional logic (showProfileSetup) correctly evaluates based on authentication state and profile fetch status to prevent premature rendering."
         }
       ]
     }

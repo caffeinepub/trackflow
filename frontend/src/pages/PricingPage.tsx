@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useGetCallerUserProfile, useSaveCallerUserProfile, useRequestApproval } from '../hooks/useQueries';
 import { Plan } from '../backend';
@@ -92,6 +93,7 @@ const plans: PlanConfig[] = [
 ];
 
 export default function PricingPage() {
+  const navigate = useNavigate();
   const { identity } = useInternetIdentity();
   const { data: userProfile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
   const saveProfile = useSaveCallerUserProfile();
@@ -102,21 +104,6 @@ export default function PricingPage() {
   const [email, setEmail] = useState('');
   const [pendingPlan, setPendingPlan] = useState<{ plan: PlanId; yearly?: boolean } | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
-
-  const showProfileSetup = !!identity && !profileLoading && isFetched && userProfile === null;
-
-  useEffect(() => {
-    if (showProfileSetup) {
-      setShowSetup(true);
-    }
-  }, [showProfileSetup]);
-
-  // If user already has a paid plan, redirect to dashboard
-  useEffect(() => {
-    if (userProfile && (userProfile.plan === 'starter' || userProfile.plan === 'premium')) {
-      window.location.hash = '#/dashboard';
-    }
-  }, [userProfile]);
 
   const handleProfileSave = async () => {
     if (!name.trim() || !email.trim()) {
@@ -140,14 +127,22 @@ export default function PricingPage() {
       setShowSetup(false);
       toast.success('Profile created! Choose your plan below.');
       if (pendingPlan) {
-        handlePlanSelect(pendingPlan.plan, pendingPlan.yearly);
+        const captured = pendingPlan;
         setPendingPlan(null);
+        navigateToPayment(captured.plan, captured.yearly);
       }
     } catch (err: any) {
       toast.error(err?.message || 'Failed to save profile');
     } finally {
       setSavingProfile(false);
     }
+  };
+
+  const navigateToPayment = (planId: PlanId, yearly?: boolean) => {
+    navigate({
+      to: '/payment',
+      search: { plan: planId, cycle: yearly ? 'yearly' : 'monthly' },
+    } as any);
   };
 
   const handlePlanSelect = (planId: PlanId, yearly?: boolean) => {
@@ -160,12 +155,11 @@ export default function PricingPage() {
     }
 
     if (planId === 'free') {
-      window.location.hash = '#/dashboard';
+      navigate({ to: '/dashboard' });
       return;
     }
 
-    const params = new URLSearchParams({ plan: planId, cycle: yearly ? 'yearly' : 'monthly' });
-    window.location.hash = `#/payment?${params.toString()}`;
+    navigateToPayment(planId, yearly);
   };
 
   if (profileLoading) {

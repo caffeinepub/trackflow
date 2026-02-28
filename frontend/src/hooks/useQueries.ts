@@ -55,14 +55,14 @@ export function useSaveCallerUserProfile() {
   });
 }
 
-export function useListUsers() {
+export function useGetAllUsers() {
   const { actor, isFetching } = useActor();
 
   return useQuery<UserProfile[]>({
-    queryKey: ['listUsers'],
+    queryKey: ['allUsers'],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.listUsers();
+      return actor.getAllUsers();
     },
     enabled: !!actor && !isFetching,
   });
@@ -78,7 +78,7 @@ export function useSetUserPlan() {
       return actor.setUserPlan(user, plan, planExpiry);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['listUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
       queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
     },
   });
@@ -372,7 +372,7 @@ export function useApprovePaymentRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pendingPaymentRequests'] });
       queryClient.invalidateQueries({ queryKey: ['allPaymentRequests'] });
-      queryClient.invalidateQueries({ queryKey: ['listUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
     },
   });
 }
@@ -542,7 +542,7 @@ export function useSetApproval() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listApprovals'] });
-      queryClient.invalidateQueries({ queryKey: ['listUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
     },
   });
 }
@@ -557,7 +557,27 @@ export function useAssignRole() {
       return actor.assignRole(user, role);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['listUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+    },
+  });
+}
+
+export function useSelfPromoteAdmin() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.selfPromoteAdmin();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['isCallerAdmin'] });
+      queryClient.invalidateQueries({ queryKey: ['platformStats'] });
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingPaymentRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['allPaymentRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['coupons'] });
     },
   });
 }

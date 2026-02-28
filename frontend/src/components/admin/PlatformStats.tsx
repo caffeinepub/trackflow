@@ -1,43 +1,77 @@
-import { useGetPlatformStats } from '../../hooks/useQueries';
+import React from 'react';
 import { Users, Activity, Target, CreditCard } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useGetPlatformStats } from '@/hooks/useQueries';
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  color: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-5 flex items-center gap-4">
+        <div className={`p-3 rounded-xl ${color}`}>
+          <Icon className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="text-2xl font-bold">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function PlatformStats() {
-  const { data: stats, isLoading } = useGetPlatformStats();
+  const { data, isLoading } = useGetPlatformStats();
 
-  const items = [
-    { icon: Users, label: 'Total Users', value: stats ? String(stats.totalUsers) : '—', color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { icon: Activity, label: 'Total Activities', value: stats ? String(stats.totalActivities) : '—', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { icon: Target, label: 'Total Habits', value: stats ? String(stats.totalHabits) : '—', color: 'text-amber-600', bg: 'bg-amber-50' },
-    { icon: CreditCard, label: 'Payment Requests', value: stats ? String(stats.totalPaymentRequests) : '—', color: 'text-purple-600', bg: 'bg-purple-50' },
-  ];
-
-  if (isLoading) {
+  if (isLoading || !data) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+        {[...Array(4)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-5">
+              <div className="h-16 animate-pulse bg-muted rounded-lg" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {items.map(({ icon: Icon, label, value, color, bg }) => (
-        <Card key={label} className="border-0 shadow-sm">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
-                <Icon className={`w-5 h-5 ${color}`} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 font-medium">{label}</p>
-                <p className="text-2xl font-bold text-slate-900">{value}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+      <StatCard
+        label="Total Users"
+        value={Number(data.totalUsers)}
+        icon={Users}
+        color="bg-blue-500"
+      />
+      <StatCard
+        label="Total Activities"
+        value={Number(data.totalActivities)}
+        icon={Activity}
+        color="bg-green-500"
+      />
+      <StatCard
+        label="Total Habits"
+        value={Number(data.totalHabits)}
+        icon={Target}
+        color="bg-purple-500"
+      />
+      <StatCard
+        label="Payment Requests"
+        value={Number(data.totalPaymentRequests)}
+        icon={CreditCard}
+        color="bg-orange-500"
+      />
     </div>
   );
 }

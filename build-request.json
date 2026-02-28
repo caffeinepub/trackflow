@@ -1,239 +1,81 @@
 {
   "kind": "build_request",
-  "title": "Build TrackFlow — Full Habit Tracker with UPI Payment & Admin Panel",
+  "title": "Fix blank login page and Internet Identity authentication",
   "projectName": "TrackFlow",
   "priority": "high",
   "requirements": [
     {
-      "id": "REQ-1",
-      "text": "Implement Internet Identity authentication. After successful login, redirect users to the pricing/plan selection page.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-4",
-          "msg-6"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Login page displays Internet Identity sign-in button",
-        "Successful login redirects to /pricing page",
-        "Unauthenticated users are redirected to login when accessing protected routes"
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "text": "Create a pricing/plan selection page shown after login. Display three plans: Free (3 habits, basic checkbox analytics, no payment required — direct to dashboard), Starter (₹149/month), and Premium (₹399/month or ₹3,199/year). Free plan skips payment; paid plans proceed to the UPI payment flow.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-4",
-          "msg-6",
-          "msg-8",
-          "msg-10"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Pricing page shows all three plans with features listed",
-        "Free plan button takes user directly to dashboard without payment",
-        "Starter and Premium plan buttons navigate to the UPI payment page with the selected plan pre-filled",
-        "Pricing in INR (₹149/mo, ₹399/mo, ₹3,199/yr) is displayed correctly"
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Build a UPI payment page for Starter and Premium plans. Display UPI ID yadavmannan007@okicici with a QR code placeholder, an input field for the user to enter their UPI transaction ID, a coupon code input field with validation, and a Submit button. On submission, save the pending payment request (user ID, plan, transaction ID, coupon used, timestamp) to the backend with status 'pending'.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-6",
-          "msg-8",
-          "msg-10"
-        ]
-      },
-      "acceptanceCriteria": [
-        "UPI ID yadavmannan007@okicici is prominently displayed",
-        "Transaction ID field is required before submission",
-        "Coupon code field applies a discount if a valid coupon is entered",
-        "Submitted payment is stored with status 'pending' in the backend",
-        "User sees a 'Payment submitted, awaiting verification' confirmation screen after submission"
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "Implement backend data models and logic for: Users (principal, name, email, phone, role, plan, planExpiry, createdAt, lastLogin), Habits (userId, name, goalType, goalValue, color, createdAt), Activities (userId, habitId, customName, startTime, endTime, duration, isProductive, earnings, notes, date), PaymentRequests (userId, plan, billingCycle, transactionId, couponCode, status, submittedAt, verifiedAt), and Coupons (code, discountPercent, usageLimit, usedCount, expiresAt, createdAt).",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-2",
-          "msg-4",
-          "msg-6",
-          "msg-8"
-        ]
-      },
-      "acceptanceCriteria": [
-        "All data models are persisted in stable Motoko state",
-        "CRUD operations are available for all models",
-        "Plan limits (Free: 3 habits) are enforced at the backend",
-        "Payment status transitions (pending → approved / rejected) are handled"
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "text": "Build the Dashboard page (/dashboard) showing: welcome message with today's date, quick stats cards (Total Hours Today, Total Earnings Today in ₹, Productive Hours, Most Active Habit), an Add Activity form (activity name dropdown with add-new option, start/end time pickers with auto-calculated duration, productive checkbox, earnings in ₹, notes), Today's Timeline listing all activities for the selected date (each card shows time range, activity name, duration, earnings, productive badge, edit/delete icons), and Habit Progress Bars showing daily goal completion per habit.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-2"
-        ]
-      },
-      "acceptanceCriteria": [
-        "All four stat cards display real data from the backend",
-        "Add Activity form validates required fields and submits successfully",
-        "Timeline updates immediately after adding/editing/deleting an activity",
-        "Progress bars reflect current vs. goal hours per habit"
-      ]
-    },
-    {
-      "id": "REQ-6",
-      "text": "Build the Analytics page (/analytics) with a date range selector (Last 7 days, Last 30 days, This Month), a Pie Chart for time distribution by activity, a Bar Chart for daily earnings trend, a Line Chart for productivity trend, and summary stats (average daily hours, total earnings, most productive day, top 3 activities). Starter plan users see normal analytics; Premium users see full analytics; Free users see only checkbox-style basic analytics.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-2",
-          "msg-4"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Charts render with real data from the backend",
-        "Date range selector filters all charts and stats",
-        "Free plan users see only basic checkbox-style analytics and an upgrade prompt for charts",
-        "Starter and Premium users see full chart analytics"
-      ]
-    },
-    {
-      "id": "REQ-7",
-      "text": "Build the Activities page (/activities) with filter bar (date range, by habit, productive/unproductive), a table/list view with columns (Date, Activity, Duration, Earnings ₹, Productive, Actions), pagination (10 items per page), bulk delete, and Export to CSV button.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-2"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Filters correctly narrow the displayed activities",
-        "Pagination works correctly across pages",
-        "Bulk delete removes selected activities from the backend",
-        "CSV export downloads a valid file with all visible columns"
-      ]
-    },
-    {
-      "id": "REQ-8",
-      "text": "Build the Habits page (/habits) showing all user habits with Add/Edit/Delete functionality (name, goal type daily/weekly, goal value in hours, color picker). Display current streak per habit. Enforce plan limits: Free users capped at 3 habits; Starter at 10 habits; Premium unlimited. Show an upgrade prompt modal when the limit is exceeded.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-2",
-          "msg-4"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Habits list displays all habits with streak count",
-        "Add/Edit/Delete operations persist to the backend",
-        "Free plan blocks adding a 4th habit and shows upgrade modal",
-        "Starter plan blocks adding an 11th habit and shows upgrade modal"
-      ]
-    },
-    {
-      "id": "REQ-9",
-      "text": "Build the Profile page (/profile) showing Google/Internet Identity profile info, an editable phone number field, account statistics (member since, total activities logged, total tracked hours, total earnings in ₹), a Delete Account button with confirmation dialog, and an Export My Data button that downloads a JSON/CSV of the user's data.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-2"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Phone number edits are saved to the backend",
-        "Account statistics reflect real backend data",
-        "Delete account removes all user data after confirmation",
-        "Export downloads a file containing the user's activities and habits"
-      ]
-    },
-    {
-      "id": "REQ-10",
-      "text": "Build the Admin Panel (/admin) accessible via URL. The admin panel must include: a pending payments queue showing user name, selected plan, submitted transaction ID, coupon used, and Approve/Reject buttons; a users table (name, principal, phone, plan, signup date, last login) with ability to manually change a user's plan; a coupon management section to create new coupons (code, discount %, usage limit, expiry date) and view/delete existing ones; and platform-wide stats (total users, total activities, active users today).",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-4",
-          "msg-6",
-          "msg-8"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Pending payment requests are listed with transaction IDs",
-        "Approve action sets user's plan and marks payment as verified",
-        "Reject action marks payment as rejected and notifies via UI",
-        "Admin can manually override any user's plan",
-        "Coupon creation form validates code uniqueness and saves to backend",
-        "Existing coupons are listed and can be deleted"
-      ]
-    },
-    {
-      "id": "REQ-11",
-      "text": "Implement a collapsible sidebar navigation with icons for: Dashboard (Home), Analytics (Chart), Activities (List), Habits (Checkbox), Profile (User). The Admin link (Shield icon) is only visible when the authenticated user has the admin role. Apply a consistent Indigo (#4f46e5) primary color theme with Inter/Poppins font, card components, toast notifications, and loading skeletons throughout. Footer reads '© {year} TrackFlow. All rights reserved.'",
+      "id": "REQ-13",
+      "text": "Fix the LoginPage so it renders correctly on initial load without showing a blank screen. Ensure the Internet Identity authentication flow initializes properly, handles the AuthClient loading state, and displays the login UI (app name, tagline, and 'Login with Internet Identity' button) before any authentication check completes.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-2"
+          "msg-4"
+        ],
+        "quotes": [
+          "it is blank the login page is not working i guess fix the problems"
         ]
       },
       "acceptanceCriteria": [
-        "Sidebar collapses to icons-only on toggle",
-        "Admin link is hidden for non-admin users",
-        "All pages use the Indigo primary color scheme consistently",
-        "Toast notifications appear for all async success/error actions",
-        "Loading skeletons display while data is being fetched",
-        "Footer appears on all pages with correct year"
+        "Navigating to the root URL '/' displays the TrackFlow login page with a visible 'Login with Internet Identity' button instead of a blank screen",
+        "The login page does not remain blank while AuthClient is initializing — a loading spinner or the full login UI is shown immediately",
+        "Clicking 'Login with Internet Identity' triggers the Internet Identity popup correctly",
+        "After successful authentication, the user is redirected to the pricing page (/pricing)",
+        "If the user is already authenticated on page load, they are automatically redirected to /dashboard without seeing the login page"
       ]
     },
     {
-      "id": "REQ-12",
-      "text": "Apply a clean, modern productivity-app visual theme: deep Indigo (#4f46e5) primary with white card backgrounds, subtle gray surfaces, Inter/Poppins typography, generous spacing, and smooth micro-interactions (hover states, transitions). The design should feel professional and focused, suitable for a daily productivity tool.",
+      "id": "REQ-14",
+      "text": "Audit and fix the App.tsx route tree and auth guard logic to ensure that unauthenticated users are correctly redirected to the login page and authenticated users are not blocked or redirected back to login. Fix any router initialization issues that may cause the entire app to render blank (e.g., missing router provider, incorrect route configuration, or premature auth checks before identity is resolved).",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-2"
+          "msg-4"
+        ],
+        "quotes": [
+          "it is blank the login page is not working i guess fix the problems"
         ]
       },
       "acceptanceCriteria": [
-        "Consistent color palette applied across all pages",
-        "Typography is uniform using Inter or Poppins",
-        "Interactive elements have clear hover and focus states"
+        "The app never renders a completely blank white page on any route",
+        "Unauthenticated users visiting any protected route (e.g., /dashboard) are redirected to /login",
+        "Authenticated users visiting /login or / are redirected to /dashboard",
+        "The auth guard waits for Internet Identity initialization before performing redirects, preventing redirect loops or flashes of blank content",
+        "All existing routes (/, /pricing, /payment, /dashboard, /analytics, /activities, /habits, /profile, /admin) resolve correctly"
+      ]
+    },
+    {
+      "id": "REQ-15",
+      "text": "Ensure the useInternetIdentity hook and useActor hook are correctly wired in the component tree so that the identity state is available to LoginPage and all protected pages on initial mount. Fix any context provider ordering issues in main.tsx that might prevent the identity from being accessible.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "it is blank the login page is not working i guess fix the problems"
+        ]
+      },
+      "acceptanceCriteria": [
+        "useInternetIdentity() returns a valid identity state (isAuthenticated, login, logout) on the LoginPage without throwing context errors",
+        "No 'Cannot read properties of undefined' or missing context errors appear in the browser console on initial load",
+        "The QueryClientProvider and InternetIdentityProvider correctly wrap the router/app so all pages have access to both contexts",
+        "The backend actor is created successfully after login and queries to the backend (e.g., getUserProfile) work without actor initialization errors"
       ]
     }
   ],
   "constraints": [
-    "No Stripe integration — payment method is UPI only (yadavmannan007@okicici)",
-    "Pricing: Starter = ₹149/month; Premium = ₹399/month or ₹3,199/year",
-    "All monetary values displayed in INR (₹)",
-    "Authentication via Internet Identity only — no standalone Google OAuth",
-    "All Motoko logic must remain in the single main actor (backend/main.mo)",
-    "Do not modify files in frontend/src/hooks/ or frontend/src/components/ui"
+    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
+    "Preserve all existing route paths and page components — only fix initialization and rendering issues"
   ],
   "nonGoals": [
-    "Stripe payment integration (explicitly removed)",
-    "Email/password authentication",
-    "Automatic payment verification (all UPI payments are manually verified by admin)",
-    "Real-time notifications or WebSockets",
-    "Mobile native app",
-    "Multi-language or multi-currency support"
+    "Changing the visual design or layout of the login page",
+    "Adding new authentication providers",
+    "Modifying backend logic or data models",
+    "Changing plan pricing or payment flow"
   ],
   "imageRequirements": {
-    "required": [
-      "TrackFlow app logo — minimalist clock/checkmark combination mark in Indigo on white background (trackflow-logo.dim_256x256.png)",
-      "UPI payment QR code placeholder graphic with 'Scan to Pay' label in Indigo (upi-qr-placeholder.dim_300x300.png)"
-    ],
+    "required": [],
     "edits": []
   }
 }

@@ -16,5 +16,7 @@
   "frontend/src/components/admin/PaymentsQueue.tsx": "Admin component listing pending UPI payment requests with approve/reject actions that update user plans on approval.",
   "frontend/src/components/admin/UsersTable.tsx": "Admin table of all users with search, principal copy, and inline plan-change dropdown for manual plan management.",
   "frontend/src/components/admin/CouponManagement.tsx": "Admin component for creating new coupon codes with discount/usage/expiry settings and listing/deleting existing coupons.",
-  "frontend/src/index.css": "Global stylesheet for TrackFlow with Tailwind directives, Inter/Poppins Google Fonts import, and a full OKLCH color design system using Indigo as the primary color for both light and dark modes."
+  "frontend/src/index.css": "Global stylesheet for TrackFlow with Tailwind directives, Inter/Poppins Google Fonts import, and a full OKLCH color design system using Indigo as the primary color for both light and dark modes.",
+  "frontend/src/App.tsx": "Main app component using TanStack Router with `createHashHistory` for ICP hash-based URL routing, separating public routes (login) and protected routes (dashboard, habits, etc.) with auth-guard layout components that use `useInternetIdentity` and proper router `navigate` calls instead of `window.location.hash` manipulation.",
+  "frontend/src/pages/LoginPage.tsx": "Login page displaying TrackFlow branding, tagline, and an \"Login with Internet Identity\" button that triggers the II popup; shows a spinner during login and redirects authenticated users to `/dashboard` via `useEffect`."
 }

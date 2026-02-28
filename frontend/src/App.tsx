@@ -1,10 +1,15 @@
-import { RouterProvider, createRouter, createRoute, createRootRoute, Outlet, redirect } from '@tanstack/react-router';
-import { ThemeProvider } from 'next-themes';
-import { Toaster } from '@/components/ui/sonner';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  createHashHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+  useNavigate,
+  redirect,
+} from '@tanstack/react-router';
 import { useInternetIdentity } from './hooks/useInternetIdentity';
-import { useActor } from './hooks/useActor';
-import { useQuery } from '@tanstack/react-query';
-import { UserProfile } from './backend';
 import LoginPage from './pages/LoginPage';
 import PricingPage from './pages/PricingPage';
 import PaymentPage from './pages/PaymentPage';
@@ -14,47 +19,88 @@ import ActivitiesPage from './pages/ActivitiesPage';
 import HabitsPage from './pages/HabitsPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
-import Layout from './components/layout/Layout';
 
-// Root route
-const rootRoute = createRootRoute({
-  component: () => <Outlet />,
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+    },
+  },
 });
 
-// Auth guard component
-function AuthGuard({ children }: { children: React.ReactNode }) {
+// Root layout component
+function RootLayout() {
+  return <Outlet />;
+}
+
+// Protected layout that checks authentication
+function ProtectedLayout() {
   const { identity, isInitializing } = useInternetIdentity();
+  const navigate = useNavigate();
+
   if (isInitializing) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading TrackFlow...</p>
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm">Loading...</p>
         </div>
       </div>
     );
   }
+
   if (!identity) {
-    window.location.hash = '#/login';
+    navigate({ to: '/login' });
     return null;
   }
-  return <>{children}</>;
+
+  return <Outlet />;
 }
 
-// Layout wrapper for protected routes
-function ProtectedLayout() {
-  return (
-    <AuthGuard>
-      <Layout>
-        <Outlet />
-      </Layout>
-    </AuthGuard>
-  );
+// Public layout that redirects authenticated users
+function PublicLayout() {
+  const { identity, isInitializing } = useInternetIdentity();
+  const navigate = useNavigate();
+
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (identity) {
+    navigate({ to: '/dashboard' });
+    return null;
+  }
+
+  return <Outlet />;
 }
 
-// Routes
-const loginRoute = createRoute({
+// Route definitions
+const rootRoute = createRootRoute({
+  component: RootLayout,
+});
+
+const publicRoute = createRoute({
   getParentRoute: () => rootRoute,
+  id: 'public',
+  component: PublicLayout,
+});
+
+const indexRoute = createRoute({
+  getParentRoute: () => publicRoute,
+  path: '/',
+  component: LoginPage,
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => publicRoute,
   path: '/login',
   component: LoginPage,
 });
@@ -113,18 +159,10 @@ const adminRoute = createRoute({
   component: AdminPage,
 });
 
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/',
-  component: () => {
-    window.location.hash = '#/login';
-    return null;
-  },
-});
+const hashHistory = createHashHistory();
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
-  loginRoute,
+  publicRoute.addChildren([indexRoute, loginRoute]),
   protectedRoute.addChildren([
     pricingRoute,
     paymentRoute,
@@ -137,13 +175,21 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-const router = createRouter({ routeTree, basepath: '/' });
+const router = createRouter({
+  routeTree,
+  history: hashHistory,
+});
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router;
+  }
+}
 
 export default function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-      <Toaster position="top-right" richColors />
-    </ThemeProvider>
+    </QueryClientProvider>
   );
 }

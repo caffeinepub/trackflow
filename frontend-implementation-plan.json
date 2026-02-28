@@ -1,415 +1,58 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "TrackFlow — Frontend Implementation Plan for Full Habit Tracker with UPI Payment & Admin Panel",
+  "title": "Fix blank login page and Internet Identity authentication",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Implement Internet Identity authentication flow with redirect to pricing page after login",
+      "id": "REQ-13",
+      "summary": "Fix LoginPage to render correctly on initial load and display login UI immediately without blank screen",
       "acceptanceCriteria": [
-        "Login page displays Internet Identity sign-in button",
-        "Successful login redirects to /pricing page",
-        "Unauthenticated users are redirected to login when accessing protected routes"
+        "Navigating to the root URL '/' displays the TrackFlow login page with a visible 'Login with Internet Identity' button instead of a blank screen",
+        "The login page does not remain blank while AuthClient is initializing — a loading spinner or the full login UI is shown immediately",
+        "Clicking 'Login with Internet Identity' triggers the Internet Identity popup correctly",
+        "After successful authentication, the user is redirected to the pricing page (/pricing)",
+        "If the user is already authenticated on page load, they are automatically redirected to /dashboard without seeing the login page"
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/LoginPage.tsx",
-          "operation": "create",
-          "description": "Create login page with Internet Identity authentication. Use the authorization component to handle login flow. Display the TrackFlow logo (frontend/public/assets/generated/trackflow-logo.dim_256x256.png) prominently. After successful login, redirect to /pricing. Include error handling for authentication failures."
-        },
-        {
-          "path": "frontend/src/components/ProtectedRoute.tsx",
-          "operation": "create",
-          "description": "Create ProtectedRoute wrapper component that checks authentication status using the authorization component. Redirect unauthenticated users to /login. Handle loading states while checking authentication."
-        },
+          "operation": "modify",
+          "description": "Fix the component to render the login UI (TrackFlow branding, tagline, and 'Login with Internet Identity' button) immediately on mount instead of showing a blank screen. Remove any conditional rendering that waits for authentication state to be resolved before displaying the UI. Ensure the component shows a loading spinner only during the actual login process (loginStatus === 'logging-in'), not during initial AuthClient initialization. Add proper error handling for login failures and ensure successful login redirects to /pricing as specified in the BuildRequest."
+        }
+      ]
+    },
+    {
+      "id": "REQ-14",
+      "summary": "Fix App.tsx route tree and auth guard to prevent blank screens and ensure correct redirects",
+      "acceptanceCriteria": [
+        "The app never renders a completely blank white page on any route",
+        "Unauthenticated users visiting any protected route (e.g., /dashboard) are redirected to /login",
+        "Authenticated users visiting /login or / are redirected to /dashboard",
+        "The auth guard waits for Internet Identity initialization before performing redirects, preventing redirect loops or flashes of blank content",
+        "All existing routes (/, /pricing, /payment, /dashboard, /analytics, /activities, /habits, /profile, /admin) resolve correctly"
+      ],
+      "file_operations": [
         {
           "path": "frontend/src/App.tsx",
           "operation": "modify",
-          "description": "Set up React Router with routes: /login (public), /pricing (protected), /dashboard (protected), /analytics (protected), /activities (protected), /habits (protected), /profile (protected), /admin (protected, admin-only). Wrap protected routes with ProtectedRoute component. Set /login as the default route for unauthenticated users."
-        },
-        {
-          "path": "frontend/src/hooks/useAuth.ts",
-          "operation": "create",
-          "description": "Create custom hook to manage authentication state using the authorization component. Expose isAuthenticated, isAdmin, userProfile, login, logout, and loading states. Verify the authorization component's usage instructions before implementing."
+          "description": "Fix the route configuration and authentication guard logic to prevent blank screens. Ensure the router renders a loading state while Internet Identity is initializing (loginStatus === 'initializing') instead of attempting redirects or rendering blank content. Fix the auth guard in the ProtectedLayout component to wait for identity resolution before deciding on redirects. Ensure authenticated users at / or /login are redirected to /dashboard, and unauthenticated users at protected routes are redirected to /login. Verify all route paths are correctly configured and the router provider is properly initialized. Add a root-level loading fallback that displays while the authentication state is being determined to prevent any blank screen flashes."
         }
       ]
     },
     {
-      "id": "REQ-2",
-      "summary": "Create pricing/plan selection page with Free, Starter, and Premium plans",
+      "id": "REQ-15",
+      "summary": "Verify context provider ordering and identity state availability throughout the component tree",
       "acceptanceCriteria": [
-        "Pricing page shows all three plans with features listed",
-        "Free plan button takes user directly to dashboard without payment",
-        "Starter and Premium plan buttons navigate to the UPI payment page with the selected plan pre-filled",
-        "Pricing in INR (₹149/mo, ₹399/mo, ₹3,199/yr) is displayed correctly"
+        "useInternetIdentity() returns a valid identity state (isAuthenticated, login, logout) on the LoginPage without throwing context errors",
+        "No 'Cannot read properties of undefined' or missing context errors appear in the browser console on initial load",
+        "The QueryClientProvider and InternetIdentityProvider correctly wrap the router/app so all pages have access to both contexts",
+        "The backend actor is created successfully after login and queries to the backend (e.g., getUserProfile) work without actor initialization errors"
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/PricingPage.tsx",
-          "operation": "create",
-          "description": "Create pricing page displaying three plan cards: Free (3 habits, basic checkbox analytics, no payment), Starter (₹149/month, 10 habits, normal analytics), and Premium (₹399/month or ₹3,199/year, unlimited habits, full analytics). Free plan button navigates to /dashboard. Paid plan buttons navigate to /payment with selected plan and cycle as URL params. Use Indigo (#4f46e5) primary color theme. Include feature comparison table."
-        },
-        {
-          "path": "frontend/src/components/PlanCard.tsx",
-          "operation": "create",
-          "description": "Create reusable PlanCard component displaying plan name, price in INR, billing cycle, feature list, and CTA button. Apply consistent card styling with white background, subtle shadows, and hover transitions. Highlight recommended plan."
-        }
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "summary": "Build UPI payment page with transaction ID submission and coupon validation",
-      "acceptanceCriteria": [
-        "UPI ID yadavmannan007@okicici is prominently displayed",
-        "Transaction ID field is required before submission",
-        "Coupon code field applies a discount if a valid coupon is entered",
-        "Submitted payment is stored with status 'pending' in the backend",
-        "User sees a 'Payment submitted, awaiting verification' confirmation screen after submission"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/PaymentPage.tsx",
-          "operation": "create",
-          "description": "Create payment page displaying selected plan details, UPI ID yadavmannan007@okicici in large text, QR code placeholder image (frontend/public/assets/generated/upi-qr-placeholder.dim_300x300.png), transaction ID input (required), coupon code input (optional) with validation button, and Submit button. On submit, call submitPaymentRequest with plan, cycle, transactionId, and couponCode. Show success confirmation with 'Payment submitted, awaiting verification' message and redirect to /dashboard after 3 seconds. Handle validation errors and display toast notifications."
-        },
-        {
-          "path": "frontend/src/hooks/usePayment.ts",
-          "operation": "create",
-          "description": "Create custom hook for payment operations: submitPayment (calls submitPaymentRequest), validateCoupon (calls getCoupon and returns discount info), and getMyPaymentRequests. Use React Query for data fetching and mutations. Handle loading and error states."
-        },
-        {
-          "path": "frontend/src/components/CouponValidator.tsx",
-          "operation": "create",
-          "description": "Create CouponValidator component with input field, validation button, and discount display. Call getCoupon to validate and show discount percentage. Display validation status (valid/invalid/expired) with appropriate styling."
-        }
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "summary": "Build Dashboard page with quick stats, Add Activity form, Today's Timeline, and Habit Progress Bars",
-      "acceptanceCriteria": [
-        "All four stat cards display real data from the backend",
-        "Add Activity form validates required fields and submits successfully",
-        "Timeline updates immediately after adding/editing/deleting an activity",
-        "Progress bars reflect current vs. goal hours per habit"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/DashboardPage.tsx",
-          "operation": "create",
-          "description": "Create dashboard page with welcome message showing today's date, four stat cards (Total Hours Today, Total Earnings Today ₹, Productive Hours, Most Active Habit), Add Activity form section, Today's Timeline section, and Habit Progress Bars section. Fetch activities and habits using getActivities and getHabits. Calculate stats from activities. Use responsive grid layout. Display loading skeletons while data is fetching."
-        },
-        {
-          "path": "frontend/src/components/dashboard/StatsCard.tsx",
-          "operation": "create",
-          "description": "Create StatsCard component displaying label, value, icon, and optional trend indicator. Use white card background with subtle shadow. Apply Indigo accent color for icons."
-        },
-        {
-          "path": "frontend/src/components/dashboard/AddActivityForm.tsx",
-          "operation": "create",
-          "description": "Create AddActivityForm with fields: habit dropdown (populated from user's habits) with 'Add new' option, custom activity name, start time picker, end time picker, duration (auto-calculated), productive checkbox, earnings input (₹), and notes textarea. On submit, call logActivity. Validate required fields. Show success toast on submission. Clear form after successful submission."
-        },
-        {
-          "path": "frontend/src/components/dashboard/ActivityTimeline.tsx",
-          "operation": "create",
-          "description": "Create ActivityTimeline component displaying today's activities as cards sorted by time. Each card shows time range, activity name, duration, earnings in ₹, productive badge, and edit/delete icons. Clicking edit opens inline edit form. Clicking delete shows confirmation dialog then calls deleteActivity. Refresh timeline after mutations."
-        },
-        {
-          "path": "frontend/src/components/dashboard/HabitProgressBar.tsx",
-          "operation": "create",
-          "description": "Create HabitProgressBar component showing habit name, current hours vs. goal hours, and progress bar visualization. Use habit color from backend. Display percentage completion. Show goal type (daily/weekly) label."
-        },
-        {
-          "path": "frontend/src/hooks/useActivities.ts",
-          "operation": "create",
-          "description": "Create custom hook for activity operations: fetch activities (calls getActivities), log activity (calls logActivity), update activity (calls updateActivity), delete activity (calls deleteActivity). Use React Query with automatic refetching. Handle loading, error states, and optimistic updates."
-        },
-        {
-          "path": "frontend/src/hooks/useDashboardStats.ts",
-          "operation": "create",
-          "description": "Create custom hook to calculate dashboard stats from activities data: total hours today, total earnings today, productive hours, and most active habit. Return computed values with proper typing."
-        }
-      ]
-    },
-    {
-      "id": "REQ-6",
-      "summary": "Build Analytics page with charts and date range filtering based on user plan",
-      "acceptanceCriteria": [
-        "Charts render with real data from the backend",
-        "Date range selector filters all charts and stats",
-        "Free plan users see only basic checkbox-style analytics and an upgrade prompt for charts",
-        "Starter and Premium users see full chart analytics"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/AnalyticsPage.tsx",
-          "operation": "create",
-          "description": "Create analytics page with date range selector (Last 7 days, Last 30 days, This Month), conditional rendering based on user plan (check userProfile.plan). For Free plan: show basic checkbox-style analytics and upgrade prompt modal. For Starter/Premium: show Pie Chart (time distribution by activity), Bar Chart (daily earnings trend), Line Chart (productivity trend), and summary stats (average daily hours, total earnings, most productive day, top 3 activities). Fetch activities with getActivities filtered by date range. Use a charting library for visualizations."
-        },
-        {
-          "path": "frontend/src/components/analytics/DateRangeSelector.tsx",
-          "operation": "create",
-          "description": "Create DateRangeSelector component with preset options (Last 7 days, Last 30 days, This Month). Emit selected range to parent component. Apply active state styling."
-        },
-        {
-          "path": "frontend/src/components/analytics/BasicAnalytics.tsx",
-          "operation": "create",
-          "description": "Create BasicAnalytics component for Free plan users showing checkbox-style simple stats: total activities, total hours tracked, total earnings. Display upgrade prompt button linking to /pricing."
-        },
-        {
-          "path": "frontend/src/components/analytics/TimeDistributionChart.tsx",
-          "operation": "create",
-          "description": "Create TimeDistributionChart component rendering a Pie Chart showing percentage breakdown of time spent per activity. Use Indigo color palette. Include legend."
-        },
-        {
-          "path": "frontend/src/components/analytics/EarningsTrendChart.tsx",
-          "operation": "create",
-          "description": "Create EarningsTrendChart component rendering a Bar Chart showing daily earnings in ₹ over the selected date range. Use Indigo bars. Label axes clearly."
-        },
-        {
-          "path": "frontend/src/components/analytics/ProductivityTrendChart.tsx",
-          "operation": "create",
-          "description": "Create ProductivityTrendChart component rendering a Line Chart showing daily productive hours over the selected date range. Use Indigo line color with smooth curves."
-        },
-        {
-          "path": "frontend/src/components/analytics/SummaryStats.tsx",
-          "operation": "create",
-          "description": "Create SummaryStats component displaying calculated metrics: average daily hours, total earnings in ₹, most productive day (date + hours), and top 3 activities by time spent. Use card grid layout."
-        },
-        {
-          "path": "frontend/src/hooks/useAnalytics.ts",
-          "operation": "create",
-          "description": "Create custom hook to compute analytics data from activities: time distribution per activity, daily earnings array, daily productivity array, average daily hours, most productive day, and top activities. Accept date range as parameter. Return computed analytics objects."
-        }
-      ]
-    },
-    {
-      "id": "REQ-7",
-      "summary": "Build Activities page with filtering, pagination, bulk delete, and CSV export",
-      "acceptanceCriteria": [
-        "Filters correctly narrow the displayed activities",
-        "Pagination works correctly across pages",
-        "Bulk delete removes selected activities from the backend",
-        "CSV export downloads a valid file with all visible columns"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/ActivitiesPage.tsx",
-          "operation": "create",
-          "description": "Create activities page with filter bar (date range picker, habit dropdown, productive/unproductive toggle), activities table/list with columns (Date, Activity, Duration, Earnings ₹, Productive, Actions), checkboxes for bulk selection, pagination controls (10 items per page), Bulk Delete button, and Export to CSV button. Fetch activities using getActivities with applied filters. Handle bulk delete by calling deleteActivity for each selected item. Generate CSV client-side and trigger download."
-        },
-        {
-          "path": "frontend/src/components/activities/ActivitiesFilter.tsx",
-          "operation": "create",
-          "description": "Create ActivitiesFilter component with date range picker, habit dropdown (populated from user's habits), and productive filter toggle. Emit filter changes to parent component. Apply Indigo accent colors."
-        },
-        {
-          "path": "frontend/src/components/activities/ActivitiesTable.tsx",
-          "operation": "create",
-          "description": "Create ActivitiesTable component displaying activities data in table format with columns: checkbox, Date, Activity (custom name or habit name), Duration, Earnings ₹, Productive (badge), Actions (edit/delete icons). Support row selection for bulk operations. Include inline edit capability. Apply striped row styling for readability."
-        },
-        {
-          "path": "frontend/src/components/activities/Pagination.tsx",
-          "operation": "create",
-          "description": "Create Pagination component with Previous/Next buttons, page number display, and page size selector. Emit page change events to parent. Disable buttons appropriately at boundaries."
-        },
-        {
-          "path": "frontend/src/utils/csvExport.ts",
-          "operation": "create",
-          "description": "Create utility function to convert activities array to CSV format and trigger browser download. Include all columns: Date, Activity, Duration, Earnings, Productive, Notes. Handle special characters and formatting."
-        }
-      ]
-    },
-    {
-      "id": "REQ-8",
-      "summary": "Build Habits page with CRUD operations, streak display, and plan limit enforcement",
-      "acceptanceCriteria": [
-        "Habits list displays all habits with streak count",
-        "Add/Edit/Delete operations persist to the backend",
-        "Free plan blocks adding a 4th habit and shows upgrade modal",
-        "Starter plan blocks adding an 11th habit and shows upgrade modal"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/HabitsPage.tsx",
-          "operation": "create",
-          "description": "Create habits page displaying user's habits as cards showing name, goal type, goal value, color badge, current streak count, and edit/delete actions. Include Add Habit button that opens modal form. Check plan limits before allowing add: Free (max 3), Starter (max 10), Premium (unlimited). Show upgrade modal when limit is exceeded. Fetch habits using getHabits. Handle create/update/delete with createHabit, updateHabit, deleteHabit."
-        },
-        {
-          "path": "frontend/src/components/habits/HabitCard.tsx",
-          "operation": "create",
-          "description": "Create HabitCard component displaying habit name, goal (daily/weekly + hours), color indicator, streak count with flame icon, and edit/delete action buttons. Use white card background with hover effects."
-        },
-        {
-          "path": "frontend/src/components/habits/HabitFormModal.tsx",
-          "operation": "create",
-          "description": "Create HabitFormModal component (create/edit mode) with fields: habit name, goal type dropdown (daily/weekly), goal value (hours), and color picker. On save, call createHabit or updateHabit. Validate required fields. Close modal on success with toast notification."
-        },
-        {
-          "path": "frontend/src/components/habits/UpgradePlanModal.tsx",
-          "operation": "create",
-          "description": "Create UpgradePlanModal component showing current plan limit reached message, benefits of upgrading, and CTA button linking to /pricing. Display appropriate message for Free (3 habit limit) or Starter (10 habit limit) users."
-        },
-        {
-          "path": "frontend/src/hooks/useHabits.ts",
-          "operation": "create",
-          "description": "Create custom hook for habit operations: fetch habits (calls getHabits), create habit (calls createHabit with plan limit check), update habit (calls updateHabit), delete habit (calls deleteHabit with confirmation). Use React Query. Include plan limit validation logic."
-        }
-      ]
-    },
-    {
-      "id": "REQ-9",
-      "summary": "Build Profile page with editable info, account stats, and data export",
-      "acceptanceCriteria": [
-        "Phone number edits are saved to the backend",
-        "Account statistics reflect real backend data",
-        "Delete account removes all user data after confirmation",
-        "Export downloads a file containing the user's activities and habits"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/ProfilePage.tsx",
-          "operation": "create",
-          "description": "Create profile page displaying user info from getCallerUserProfile (name, email, plan, plan expiry), editable phone number field with save button, account statistics section (Member since, Total activities logged, Total tracked hours, Total earnings ₹), Delete Account button (shows confirmation dialog before calling deleteAccount and logging out), and Export My Data button (downloads JSON/CSV of user's activities and habits). Calculate stats from activities and habits data."
-        },
-        {
-          "path": "frontend/src/components/profile/ProfileInfo.tsx",
-          "operation": "create",
-          "description": "Create ProfileInfo component displaying user name, email, current plan badge, and plan expiry date if applicable. Show principal ID in small text. Apply card styling."
-        },
-        {
-          "path": "frontend/src/components/profile/EditablePhone.tsx",
-          "operation": "create",
-          "description": "Create EditablePhone component with phone input field, edit/save buttons. On save, update userProfile.phone and call saveCallerUserProfile. Show success toast on save."
-        },
-        {
-          "path": "frontend/src/components/profile/AccountStats.tsx",
-          "operation": "create",
-          "description": "Create AccountStats component displaying four stat items: Member since (createdAt formatted), Total activities logged (count), Total tracked hours (sum), Total earnings ₹ (sum). Use grid layout with icons."
-        },
-        {
-          "path": "frontend/src/components/profile/DeleteAccountDialog.tsx",
-          "operation": "create",
-          "description": "Create DeleteAccountDialog component with warning message, confirmation checkbox ('I understand this action is permanent'), and Confirm Delete button. On confirm, call deleteAccount, clear all cached data, and redirect to /login."
-        },
-        {
-          "path": "frontend/src/utils/dataExport.ts",
-          "operation": "create",
-          "description": "Create utility functions to export user data: exportActivitiesJSON, exportHabitsJSON, and exportAllDataCSV. Fetch all activities and habits, format into JSON/CSV, and trigger browser download with timestamped filename."
-        }
-      ]
-    },
-    {
-      "id": "REQ-10",
-      "summary": "Build Admin Panel with payment queue, user management, coupon management, and platform stats",
-      "acceptanceCriteria": [
-        "Pending payment requests are listed with transaction IDs",
-        "Approve action sets user's plan and marks payment as verified",
-        "Reject action marks payment as rejected and notifies via UI",
-        "Admin can manually override any user's plan",
-        "Coupon creation form validates code uniqueness and saves to backend",
-        "Existing coupons are listed and can be deleted"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/AdminPage.tsx",
-          "operation": "create",
-          "description": "Create admin panel page (accessible at /admin) with four main sections: Pending Payments Queue, Users Table, Coupon Management, and Platform Stats. Check isCallerAdmin and redirect non-admins with access denied message. Fetch data using getPendingPaymentRequests, listUsers, listCoupons, and getPlatformStats. Use tabbed interface for clean organization."
-        },
-        {
-          "path": "frontend/src/components/admin/PaymentsQueue.tsx",
-          "operation": "create",
-          "description": "Create PaymentsQueue component displaying pending payment requests in table format with columns: User Name (fetch from listUsers), Selected Plan, Billing Cycle, Transaction ID, Coupon Used, Submitted At, and Actions (Approve/Reject buttons). On approve, call approvePaymentRequest. On reject, call rejectPaymentRequest. Show confirmation dialogs for both actions. Refresh queue after mutations with success toasts."
-        },
-        {
-          "path": "frontend/src/components/admin/UsersTable.tsx",
-          "operation": "create",
-          "description": "Create UsersTable component displaying all users with columns: Name, Principal (truncated with copy button), Phone, Current Plan (badge), Signup Date, Last Login, and Actions (Change Plan dropdown). On plan change, call setUserPlan with selected plan and null expiry. Show confirmation dialog before changing plan. Include search/filter functionality by name or principal."
-        },
-        {
-          "path": "frontend/src/components/admin/CouponManagement.tsx",
-          "operation": "create",
-          "description": "Create CouponManagement component with Create New Coupon form (code input, discount % input, usage limit input, expiry date picker, Create button) and Existing Coupons list (code, discount %, usage limit, used count, expiry, delete action). On create, validate code uniqueness client-side then call createCoupon. On delete, show confirmation then call deleteCoupon. Display success/error toasts for all operations."
-        },
-        {
-          "path": "frontend/src/components/admin/PlatformStats.tsx",
-          "operation": "create",
-          "description": "Create PlatformStats component displaying four key metrics from getPlatformStats: Total Users, Total Activities, Total Habits, Total Payment Requests. Use large stat cards with icons. Refresh data periodically (every 30 seconds)."
-        },
-        {
-          "path": "frontend/src/hooks/useAdmin.ts",
-          "operation": "create",
-          "description": "Create custom hook for admin operations: fetch pending payments (getPendingPaymentRequests), approve payment (approvePaymentRequest), reject payment (rejectPaymentRequest), fetch users (listUsers), set user plan (setUserPlan), fetch coupons (listCoupons), create coupon (createCoupon), delete coupon (deleteCoupon), fetch platform stats (getPlatformStats). Use React Query with proper cache invalidation."
-        }
-      ]
-    },
-    {
-      "id": "REQ-11",
-      "summary": "Implement collapsible sidebar navigation with role-based visibility and consistent theme",
-      "acceptanceCriteria": [
-        "Sidebar collapses to icons-only on toggle",
-        "Admin link is hidden for non-admin users",
-        "All pages use the Indigo primary color scheme consistently",
-        "Toast notifications appear for all async success/error actions",
-        "Loading skeletons display while data is being fetched",
-        "Footer appears on all pages with correct year"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/layout/Sidebar.tsx",
-          "operation": "create",
-          "description": "Create Sidebar component with collapsible behavior (toggle between full-width and icons-only). Include navigation links with icons: Dashboard (Home icon, /dashboard), Analytics (Chart icon, /analytics), Activities (List icon, /activities), Habits (Checkbox icon, /habits), Profile (User icon, /profile). Conditionally render Admin link (Shield icon, /admin) only when isAdmin is true from useAuth hook. Apply Indigo (#4f46e5) accent color to active route. Include TrackFlow logo (frontend/public/assets/generated/trackflow-logo.dim_256x256.png) at top. Add collapse toggle button."
-        },
-        {
-          "path": "frontend/src/components/layout/Layout.tsx",
-          "operation": "create",
-          "description": "Create Layout component wrapping Sidebar and main content area. Include Footer component at bottom. Apply consistent spacing and responsive behavior. Adjust content area margin based on sidebar collapsed state."
-        },
-        {
-          "path": "frontend/src/components/layout/Footer.tsx",
-          "operation": "create",
-          "description": "Create Footer component displaying '© {currentYear} TrackFlow. All rights reserved.' text centered with subtle gray styling. Use current year dynamically."
-        },
-        {
-          "path": "frontend/src/components/common/Toast.tsx",
-          "operation": "create",
-          "description": "Create Toast notification component system (success, error, info variants) with auto-dismiss after 3 seconds. Use Indigo for success, red for error. Position fixed at top-right. Implement using context provider for global access."
-        },
-        {
-          "path": "frontend/src/components/common/LoadingSkeleton.tsx",
-          "operation": "create",
-          "description": "Create LoadingSkeleton component with variants for cards, tables, and charts. Use subtle gray shimmer animation. Provide size props (small, medium, large) for flexibility."
-        },
-        {
-          "path": "frontend/src/contexts/ToastContext.tsx",
-          "operation": "create",
-          "description": "Create ToastContext and ToastProvider to manage toast notifications globally. Expose showToast function accepting message, type, and duration. Maintain toast queue with auto-dismiss timers."
-        },
-        {
-          "path": "frontend/src/App.tsx",
+          "path": "frontend/src/main.tsx",
           "operation": "modify",
-          "description": "Wrap application with Layout component for protected routes. Include ToastProvider at root level. Ensure /login route does not use Layout wrapper."
-        }
-      ]
-    },
-    {
-      "id": "REQ-12",
-      "summary": "Apply clean, modern productivity-app visual theme with Indigo primary color",
-      "acceptanceCriteria": [
-        "Consistent color palette applied across all pages",
-        "Typography is uniform using Inter or Poppins",
-        "Interactive elements have clear hover and focus states"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/index.css",
-          "operation": "modify",
-          "description": "Update global styles with Indigo (#4f46e5) as primary color, white for card backgrounds, subtle grays for surfaces. Set Inter or Poppins as base font family. Define CSS custom properties for colors: --primary-indigo, --surface-gray, --card-white. Add smooth transition utilities for micro-interactions. Ensure generous spacing with consistent padding/margin scale."
-        },
-        {
-          "path": "frontend/tailwind.config.js",
-          "operation": "modify",
-          "description": "Extend Tailwind theme with Indigo primary color (#4f46e5), custom gray shades for surfaces, Inter and Poppins font families. Configure hover and focus state variants for all interactive elements. Add custom spacing scale for generous whitespace. Define transition timings for smooth animations."
+          "description": "Verify and fix the context provider ordering to ensure InternetIdentityProvider and QueryClientProvider correctly wrap the App component. Confirm that the provider hierarchy allows all child components (including LoginPage and protected routes) to access both the identity context and query client without errors. Add error boundaries if needed to catch and display any context-related initialization errors gracefully instead of showing a blank screen. Ensure the root element mounts correctly and the provider tree is initialized before any route resolution occurs."
         }
       ]
     }

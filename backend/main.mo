@@ -7,24 +7,29 @@ import Char "mo:core/Char";
 import Order "mo:core/Order";
 import Nat "mo:core/Nat";
 import Principal "mo:core/Principal";
+import List "mo:core/List";
+import Iter "mo:core/Iter";
 import Runtime "mo:core/Runtime";
+
+
 import AccessControl "authorization/access-control";
 import UserApproval "user-approval/approval";
 import MixinAuthorization "authorization/MixinAuthorization";
 import MixinStorage "blob-storage/Mixin";
 
+
 actor {
-  // ── Access Control ──────────────────────────────────────────────────────────
+  // ── Access Control ───────────────────────────────────────────────
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
-  // ── Storage ─────────────────────────────────────────────────────────────────
+  // ── Storage ──────────────────────────────────────────────────────
   include MixinStorage();
 
-  // ── User Approval ───────────────────────────────────────────────────────────
+  // ── User Approval ────────────────────────────────────────────────
   let approvalState = UserApproval.initState(accessControlState);
 
-  // ── Types ───────────────────────────────────────────────────────────────────
+  // ── Types ────────────────────────────────────────────────────────
 
   type Plan = {
     #free;
@@ -114,7 +119,27 @@ actor {
     totalPaymentRequests : Nat;
   };
 
-  // ── State ────────────────────────────────────────────────────────────────────
+  type HabitStreak = {
+    habitId : Nat;
+    streakCount : Nat;
+    totalEntries : Nat;
+    active : Bool;
+  };
+
+  type UserStreaks = {
+    userId : Principal;
+    totalActivities : Nat;
+    longestStreak : Nat;
+    activeStreak : Nat;
+    habits : [HabitStreak];
+  };
+
+  type StreakDay = {
+    habitId : Nat;
+    date : Time.Time;
+  };
+
+  // ── State ───────────────────────────────────────────────────────
 
   var nextHabitId = 1;
   var nextActivityId = 1;
@@ -126,8 +151,9 @@ actor {
   let activities = Map.empty<Nat, Activity>();
   let paymentRequests = Map.empty<Nat, PaymentRequest>();
   let coupons = Map.empty<Nat, Coupon>();
+  let allUniqueStreakDays = List.empty<StreakDay>();
 
-  // ── Authorization helpers ────────────────────────────────────────────────────
+  // ── Authorization helpers ──────────────────────────────────────
 
   func requireAdmin(caller : Principal) {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
@@ -142,15 +168,12 @@ actor {
   };
 
   func requireOwnerOrAdmin(caller : Principal, owner : Principal) {
-    if (not (
-      AccessControl.isAdmin(accessControlState, caller) or
-      caller == owner
-    )) {
+    if (not AccessControl.isAdmin(accessControlState, caller) and caller != owner) {
       Runtime.trap("Unauthorized: Only the owner or an admin can perform this action");
     };
   };
 
-  // ── Plan-limit helper ────────────────────────────────────────────────────────
+  // ── Plan-limit helper ─────────────────────────────────────────
 
   func getUserPlan(caller : Principal) : Plan {
     switch (users.get(caller)) {
@@ -193,56 +216,44 @@ actor {
     };
   };
 
-  // ── Admin existence check ────────────────────────────────────────────────────
+  // ── Admin check ───────────────────────────────────────────────
 
-  /// Returns true if any registered user currently holds the admin role.
   func adminExists() : Bool {
-    let allUsers = users.keys().toArray();
-    var found = false;
-    for (principal in allUsers.values()) {
-      if (AccessControl.isAdmin(accessControlState, principal)) {
-        found := true;
-      };
+    for ((principal) in users.keys()) {
+      if (AccessControl.isAdmin(accessControlState, principal)) { return true };
     };
-    found;
+    false;
   };
 
-  // ── User Approval Functions ──────────────────────────────────────────────────
+  // ── User Approval Functions ──────────────────────────────────
 
-  /// Check if the caller is approved (true for admins)
   public query ({ caller }) func isCallerApproved() : async Bool {
     AccessControl.hasPermission(accessControlState, caller, #admin) or UserApproval.isApproved(approvalState, caller);
   };
 
-  /// Request approval as a new user
   public shared ({ caller }) func requestApproval() : async () {
     UserApproval.requestApproval(approvalState, caller);
   };
 
-  /// Admin: Set approval status for a user
   public shared ({ caller }) func setApproval(user : Principal, status : UserApproval.ApprovalStatus) : async () {
     requireAdmin(caller);
     UserApproval.setApproval(approvalState, user, status);
   };
 
-  /// Admin: List all approval entries
   public query ({ caller }) func listApprovals() : async [UserApproval.UserApprovalInfo] {
     requireAdmin(caller);
     UserApproval.listApprovals(approvalState);
   };
 
-  // ── User Profile ─────────────────────────────────────────────────────────────
+  // ── User Profile ─────────────────────────────────────────────
 
-  /// Get the calling user's own profile.
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     requireUser(caller);
     users.get(caller);
   };
 
-  /// Save / update the calling user's own profile.
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
     requireUser(caller);
-    // Ensure the stored principal always matches the caller.
     let sanitised : UserProfile = {
       principal = caller;
       name = profile.name;
@@ -256,18 +267,16 @@ actor {
     users.add(caller, sanitised);
   };
 
-  /// Fetch another user's profile.
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
     requireOwnerOrAdmin(caller, user);
     users.get(user);
   };
 
-  /// Returns all user profiles.
   public query ({ caller }) func getAllUsers() : async [UserProfile] {
+    requireAdmin(caller);
     users.values().toArray();
   };
 
-  /// Admin: Set a user's plan.
   public shared ({ caller }) func setUserPlan(user : Principal, plan : Plan, planExpiry : ?Time.Time) : async () {
     requireAdmin(caller);
     switch (users.get(user)) {
@@ -290,17 +299,14 @@ actor {
     };
   };
 
-  /// Assigns a role to a user (requires admin privileges).
   public shared ({ caller }) func assignRole(user : Principal, role : AccessControl.UserRole) : async () {
     requireAdmin(caller);
     AccessControl.assignRole(accessControlState, caller, user, role);
   };
 
-  /// Delete the calling user's own account.
   public shared ({ caller }) func deleteAccount() : async () {
     requireUser(caller);
     users.remove(caller);
-    // Remove all habits and activities belonging to this user.
     let userHabits = habits.values().toArray().filter(
       func(h : Habit) : Bool { h.userId == caller }
     );
@@ -315,9 +321,8 @@ actor {
     };
   };
 
-  // ── Habits ───────────────────────────────────────────────────────────────────
+  // ── Habits ───────────────────────────────────────────────────
 
-  /// Create a new habit for the calling user.
   public shared ({ caller }) func createHabit(
     name : Text,
     goalType : HabitGoal,
@@ -341,7 +346,6 @@ actor {
     nextHabitId += 1;
   };
 
-  /// Update an existing habit. Only the owner (or admin) may update.
   public shared ({ caller }) func updateHabit(
     habitId : Nat,
     name : Text,
@@ -372,7 +376,6 @@ actor {
     };
   };
 
-  /// Delete a habit. Only the owner (or admin) may delete.
   public shared ({ caller }) func deleteHabit(habitId : Nat) : async () {
     requireUser(caller);
     switch (habits.get(habitId)) {
@@ -386,8 +389,6 @@ actor {
     };
   };
 
-  /// Get habits for a user. Users may only query their own habits; admins may
-  /// query any user's habits.
   public query ({ caller }) func getHabits(userId : Principal, goalType : ?HabitGoal) : async [Habit] {
     requireOwnerOrAdmin(caller, userId);
     let allHabits = habits.values().toArray().filter(
@@ -401,9 +402,8 @@ actor {
     };
   };
 
-  // ── Activities ───────────────────────────────────────────────────────────────
+  // ── Activities ────────────────────────────────────────────────
 
-  /// Log a new activity for the calling user.
   public shared ({ caller }) func logActivity(
     habitId : Nat,
     customName : Text,
@@ -433,7 +433,6 @@ actor {
     nextActivityId += 1;
   };
 
-  /// Update an existing activity. Only the owner (or admin) may update.
   public shared ({ caller }) func updateActivity(
     activityId : Nat,
     habitId : Nat,
@@ -471,7 +470,6 @@ actor {
     };
   };
 
-  /// Delete an activity. Only the owner (or admin) may delete.
   public shared ({ caller }) func deleteActivity(activityId : Nat) : async () {
     requireUser(caller);
     switch (activities.get(activityId)) {
@@ -485,8 +483,6 @@ actor {
     };
   };
 
-  /// Get activities for a user. Users may only query their own; admins may
-  /// query any user's activities.
   public query ({ caller }) func getActivities(
     userId : Principal,
     habitId : ?Nat,
@@ -512,9 +508,135 @@ actor {
     };
   };
 
-  // ── Payment Requests ─────────────────────────────────────────────────────────
+  // ── Streaks ───────────────────────────────────────────────────
 
-  /// Submit a payment request. Only registered users may submit.
+  func calculateUserStreak(userId : Principal) : Nat {
+    let userActivities = activities.values().toArray().filter(
+      func(a : Activity) : Bool { a.userId == userId }
+    );
+    if (userActivities.size() == 0) { return 0 };
+    let sorted = userActivities.sort(
+      func(a : Activity, b : Activity) : Order.Order {
+        Int.compare(a.date, b.date);
+      }
+    );
+    var longestStreak = 1;
+    var currentStreak = 1;
+    var previousDay = sorted[0].date;
+    for (i in Nat.range(1, sorted.size())) {
+      let dayDiff = Int.abs((sorted[i].date - previousDay) / 86_400_000_000_000);
+      if (dayDiff == 1) {
+        currentStreak += 1;
+        if (currentStreak > longestStreak) { longestStreak := currentStreak };
+      } else if (dayDiff > 1) { currentStreak := 1 };
+      previousDay := sorted[i].date;
+    };
+    longestStreak;
+  };
+
+  func calculateHabitStreak(habitId : Nat) : Nat {
+    let habitActivities = activities.values().toArray().filter(
+      func(a : Activity) : Bool { a.habitId == habitId }
+    );
+    if (habitActivities.size() == 0) { return 0 };
+    let sorted = habitActivities.sort(
+      func(a : Activity, b : Activity) : Order.Order {
+        Int.compare(a.date, b.date);
+      }
+    );
+    var longestStreak = 1;
+    var currentStreak = 1;
+    var previousDay = sorted[0].date;
+    for (i in Nat.range(1, sorted.size())) {
+      let dayDiff = Int.abs((sorted[i].date - previousDay) / 86_400_000_000_000);
+      if (dayDiff == 1) {
+        currentStreak += 1;
+        if (currentStreak > longestStreak) { longestStreak := currentStreak };
+      } else if (dayDiff > 1) { currentStreak := 1 };
+      previousDay := sorted[i].date;
+    };
+    longestStreak;
+  };
+
+  // Verify the caller owns the habit (or is admin) before exposing streak data
+  func requireHabitOwnerOrAdmin(caller : Principal, habitId : Nat) {
+    switch (habits.get(habitId)) {
+      case (null) {
+        Runtime.trap("Habit does not exist (id: " # habitId.toText() # ")");
+      };
+      case (?habit) {
+        requireOwnerOrAdmin(caller, habit.userId);
+      };
+    };
+  };
+
+  public query ({ caller }) func getHabitStreak(habitId : Nat) : async Nat {
+    requireUser(caller);
+    requireHabitOwnerOrAdmin(caller, habitId);
+    calculateHabitStreak(habitId);
+  };
+
+  public query ({ caller }) func getUserStreak(userId : Principal) : async Nat {
+    requireUser(caller);
+    requireOwnerOrAdmin(caller, userId);
+    calculateUserStreak(userId);
+  };
+
+  public query ({ caller }) func getHabitStreaks(habitId : Nat) : async [StreakDay] {
+    requireUser(caller);
+    requireHabitOwnerOrAdmin(caller, habitId);
+    allUniqueStreakDays.toArray().filter(func(streakDay) { streakDay.habitId == habitId });
+  };
+
+  public query ({ caller }) func getUserStreaks(userId : Principal) : async UserStreaks {
+    requireUser(caller);
+    requireOwnerOrAdmin(caller, userId);
+    let userActivities = activities.values().toArray().filter(
+      func(a : Activity) : Bool { a.userId == userId }
+    );
+    if (userActivities.size() == 0) {
+      return {
+        userId;
+        totalActivities = 0;
+        longestStreak = 0;
+        activeStreak = 0;
+        habits = [];
+      };
+    };
+    var longestStreak = 1;
+    var currentStreak = 1;
+    var maxCurrentStreak = 1;
+    var previousDay = userActivities[0].date;
+    for (activity in userActivities.values()) {
+      let dayDiff = Int.abs((activity.date - previousDay) / 86_400_000_000_000);
+      if (dayDiff == 1) {
+        currentStreak += 1;
+        if (currentStreak > longestStreak) {
+          longestStreak := currentStreak;
+        };
+      } else if (dayDiff > 1) { currentStreak := 1 };
+      if (maxCurrentStreak == 1) { maxCurrentStreak := currentStreak };
+      previousDay := activity.date;
+    };
+    let habitStreaksList = activities.values().toArray().map(func(activity) {
+      {
+        habitId = activity.habitId;
+        streakCount = calculateHabitStreak(activity.habitId);
+        totalEntries = 1;
+        active = true;
+      };
+    });
+    {
+      userId;
+      totalActivities = userActivities.size();
+      longestStreak;
+      activeStreak = maxCurrentStreak;
+      habits = habitStreaksList;
+    };
+  };
+
+  // ── Payment Requests ──────────────────────────────────────────
+
   public shared ({ caller }) func submitPaymentRequest(
     plan : Plan,
     cycle : ?PlanCycle,
@@ -537,8 +659,8 @@ actor {
     nextPaymentRequestId += 1;
   };
 
-  /// Approve a payment request and update the user's plan.
   public shared ({ caller }) func approvePaymentRequest(requestId : Nat) : async () {
+    requireAdmin(caller);
     switch (paymentRequests.get(requestId)) {
       case (null) {
         Runtime.trap("Cannot approve non-existent payment request (id: " # requestId.toText() # ")");
@@ -556,7 +678,6 @@ actor {
           verifiedAt = ?Time.now();
         };
         paymentRequests.add(requestId, updated);
-        // Update the user's plan.
         switch (users.get(request.userId)) {
           case (null) {};
           case (?profile) {
@@ -582,8 +703,8 @@ actor {
     };
   };
 
-  /// Reject a payment request.
   public shared ({ caller }) func rejectPaymentRequest(requestId : Nat) : async () {
+    requireAdmin(caller);
     switch (paymentRequests.get(requestId)) {
       case (null) {
         Runtime.trap("Cannot reject non-existent payment request (id: " # requestId.toText() # ")");
@@ -605,19 +726,18 @@ actor {
     };
   };
 
-  /// Get all pending payment requests.
   public query ({ caller }) func getPendingPaymentRequests() : async [PaymentRequest] {
+    requireAdmin(caller);
     paymentRequests.values().toArray().filter(
       func(p : PaymentRequest) : Bool { p.status == #pending }
     );
   };
 
-  /// Get all payment requests.
   public query ({ caller }) func getAllPaymentRequests() : async [PaymentRequest] {
+    requireAdmin(caller);
     paymentRequests.values().toArray();
   };
 
-  /// Get the calling user's own payment requests.
   public query ({ caller }) func getMyPaymentRequests() : async [PaymentRequest] {
     requireUser(caller);
     paymentRequests.values().toArray().filter(
@@ -625,9 +745,8 @@ actor {
     );
   };
 
-  // ── Coupons ─────────────────────────────────────────────────────────────────-
+  // ── Coupons ──────────────────────────────────────────────────
 
-  /// Look up a coupon by code. Only registered users may validate coupons.
   public query ({ caller }) func getCoupon(code : Text) : async ?Coupon {
     requireUser(caller);
     let filtered = coupons.values().toArray().filter(
@@ -636,13 +755,13 @@ actor {
     if (filtered.size() == 0) { null } else { ?filtered[0] };
   };
 
-  /// Create a coupon
   public shared ({ caller }) func createCoupon(
     code : Text,
     discountPercent : Nat,
     usageLimit : Nat,
     expiresAt : ?Time.Time,
   ) : async () {
+    requireAdmin(caller);
     let coupon : Coupon = {
       id = nextCouponId;
       code;
@@ -656,8 +775,8 @@ actor {
     nextCouponId += 1;
   };
 
-  /// List all coupons.
   public query ({ caller }) func listCoupons() : async [Coupon] {
+    requireAdmin(caller);
     coupons.values().toArray().sort(
       func(a : Coupon, b : Coupon) : Order.Order {
         Text.compare(a.code, b.code);
@@ -665,8 +784,8 @@ actor {
     );
   };
 
-  /// Delete a coupon by code.
   public shared ({ caller }) func deleteCoupon(code : Text) : async () {
+    requireAdmin(caller);
     let filtered = coupons.values().toArray().filter(
       func(c : Coupon) : Bool { c.code == code }
     );
@@ -676,8 +795,8 @@ actor {
     coupons.remove(filtered[0].id);
   };
 
-  /// Search coupons by code substring.
   public query ({ caller }) func searchCoupons(searchQuery : Text) : async [Coupon] {
+    requireAdmin(caller);
     let queryLower = searchQuery.map(
       func(c : Char) : Char {
         if (c >= 'A' and c <= 'Z') {
@@ -699,10 +818,10 @@ actor {
     );
   };
 
-  // ── Platform stats (admin) ─────────────────────────────────────────────────--
+  // ── Platform stats (admin) ──────────────────────────────────
 
-  /// Platform-wide statistics
   public query ({ caller }) func getPlatformStats() : async PlatformStats {
+    requireAdmin(caller);
     {
       totalUsers = users.size();
       totalActivities = activities.size();
@@ -711,29 +830,22 @@ actor {
     };
   };
 
-  // ── Self-Promote Admin ───────────────────────────────────────────────────────
-
-  /// Allows the caller to promote themselves to admin ONLY when no admin
-  /// currently exists in the system (i.e. first-time bootstrap).
-  /// The caller must already be a registered user (have a profile).
+  // ── Self-Promote Admin ─────────────────────────────────────
+  // Uses assignRole with internal admin guard to create the first admin.
   public shared ({ caller }) func selfPromoteAdmin() : async () {
-    // Reject anonymous principals outright.
     if (caller.isAnonymous()) {
       Runtime.trap("Unauthorized: Anonymous principals cannot become admin");
     };
-
-    // Only allow self-promotion when no admin exists yet.
     if (adminExists()) {
       Runtime.trap("Unauthorized: An admin already exists. Contact the existing admin to grant you the admin role.");
     };
-
-    // The caller must have a registered user profile.
     switch (users.get(caller)) {
       case (null) {
         Runtime.trap("Unauthorized: You must have a registered profile before becoming admin");
       };
       case (?_profile) {
-        // Use the AccessControl module's assignRole path: assign admin role.
+        // Use assignRole to bootstrap the first admin; this does not require
+        // the caller to already be an admin.
         AccessControl.assignRole(accessControlState, caller, caller, #admin);
       };
     };

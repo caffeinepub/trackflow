@@ -86,6 +86,7 @@ export const Coupon = IDL.Record({
   'discountPercent' : IDL.Nat,
   'usageLimit' : IDL.Nat,
 });
+export const StreakDay = IDL.Record({ 'date' : Time, 'habitId' : IDL.Nat });
 export const Habit = IDL.Record({
   'id' : IDL.Nat,
   'goalType' : HabitGoal,
@@ -102,6 +103,19 @@ export const PlatformStats = IDL.Record({
   'totalPaymentRequests' : IDL.Nat,
   'totalHabits' : IDL.Nat,
   'totalUsers' : IDL.Nat,
+});
+export const HabitStreak = IDL.Record({
+  'active' : IDL.Bool,
+  'totalEntries' : IDL.Nat,
+  'habitId' : IDL.Nat,
+  'streakCount' : IDL.Nat,
+});
+export const UserStreaks = IDL.Record({
+  'totalActivities' : IDL.Nat,
+  'userId' : IDL.Principal,
+  'activeStreak' : IDL.Nat,
+  'habits' : IDL.Vec(HabitStreak),
+  'longestStreak' : IDL.Nat,
 });
 export const ApprovalStatus = IDL.Variant({
   'pending' : IDL.Null,
@@ -164,6 +178,8 @@ export const idlService = IDL.Service({
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCoupon' : IDL.Func([IDL.Text], [IDL.Opt(Coupon)], ['query']),
+  'getHabitStreak' : IDL.Func([IDL.Nat], [IDL.Nat], ['query']),
+  'getHabitStreaks' : IDL.Func([IDL.Nat], [IDL.Vec(StreakDay)], ['query']),
   'getHabits' : IDL.Func(
       [IDL.Principal, IDL.Opt(HabitGoal)],
       [IDL.Vec(Habit)],
@@ -181,6 +197,8 @@ export const idlService = IDL.Service({
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
+  'getUserStreak' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
+  'getUserStreaks' : IDL.Func([IDL.Principal], [UserStreaks], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isCallerApproved' : IDL.Func([], [IDL.Bool], ['query']),
   'listApprovals' : IDL.Func([], [IDL.Vec(UserApprovalInfo)], ['query']),
@@ -310,6 +328,7 @@ export const idlFactory = ({ IDL }) => {
     'discountPercent' : IDL.Nat,
     'usageLimit' : IDL.Nat,
   });
+  const StreakDay = IDL.Record({ 'date' : Time, 'habitId' : IDL.Nat });
   const Habit = IDL.Record({
     'id' : IDL.Nat,
     'goalType' : HabitGoal,
@@ -326,6 +345,19 @@ export const idlFactory = ({ IDL }) => {
     'totalPaymentRequests' : IDL.Nat,
     'totalHabits' : IDL.Nat,
     'totalUsers' : IDL.Nat,
+  });
+  const HabitStreak = IDL.Record({
+    'active' : IDL.Bool,
+    'totalEntries' : IDL.Nat,
+    'habitId' : IDL.Nat,
+    'streakCount' : IDL.Nat,
+  });
+  const UserStreaks = IDL.Record({
+    'totalActivities' : IDL.Nat,
+    'userId' : IDL.Principal,
+    'activeStreak' : IDL.Nat,
+    'habits' : IDL.Vec(HabitStreak),
+    'longestStreak' : IDL.Nat,
   });
   const ApprovalStatus = IDL.Variant({
     'pending' : IDL.Null,
@@ -392,6 +424,8 @@ export const idlFactory = ({ IDL }) => {
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCoupon' : IDL.Func([IDL.Text], [IDL.Opt(Coupon)], ['query']),
+    'getHabitStreak' : IDL.Func([IDL.Nat], [IDL.Nat], ['query']),
+    'getHabitStreaks' : IDL.Func([IDL.Nat], [IDL.Vec(StreakDay)], ['query']),
     'getHabits' : IDL.Func(
         [IDL.Principal, IDL.Opt(HabitGoal)],
         [IDL.Vec(Habit)],
@@ -409,6 +443,8 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
+    'getUserStreak' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
+    'getUserStreaks' : IDL.Func([IDL.Principal], [UserStreaks], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isCallerApproved' : IDL.Func([], [IDL.Bool], ['query']),
     'listApprovals' : IDL.Func([], [IDL.Vec(UserApprovalInfo)], ['query']),

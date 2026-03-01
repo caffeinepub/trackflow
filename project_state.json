@@ -1,44 +1,24 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Habit tracker app with Internet Identity login, dashboard, add/edit/delete habits, daily/weekly frequency, streak tracking, and clean modern UI. Currently fixing dashboard data loading issue.",
-  "architectural_notes": [
-    "Uses Internet Identity for authentication",
-    "Built with Tailwind CSS for styling"
-  ],
+  "summary": "New project",
+  "architectural_notes": [],
   "known_issues": [
-    "Dashboard cannot load data - habits and streaks not displaying"
+    "Admin privileges check still blocking the users section despite guards supposedly being removed"
   ],
   "isFixRequest": true,
   "existing_features": [
     {
-      "id": "feature-fix-the-dashboard-page-so-that-habit-progress-bars-today-s-stats-cards-and-activity-timeline-all-load-and-display-data-correctly-without-remaining-blank-or-failing-to-fetch",
-      "title": "Fix the dashboard page so that habit progress bars, today's stats cards, and activity timeline all load and display data correctly without remaining blank or failing to fetch.",
+      "id": "feature-remove-all-remaining-admin-privilege-role-based-access-checks-that-block-the-users-section-in-the-admin-panel-specifically-strip-any-guard-in-the-backend-that-requires-an-admin-role-before-returning-user-data-e-g-in-any-getusers-getallusers-or-similar-query-and-remove-any-frontend-conditional-in-adminpage-or-userstable-that-renders-an-admin-privileges-required-error-or-hides-the-users-tab-based-on-a-role-check",
+      "title": "Remove all remaining admin privilege / role-based access checks that block the Users section in the admin panel. Specifically, strip any guard in the backend that requires an admin role before returning user data (e.g. in any `getUsers`, `getAllUsers`, or similar query), and remove any frontend conditional in AdminPage or UsersTable that renders an 'Admin privileges required' error or hides the users tab based on a role check.",
       "reqIds": [
         "REQ-1"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-ensure-the-react-query-hooks-used-by-dashboardpage-habits-query-activities-query-user-profile-query-correctly-call-the-backend-actor-and-handle-loading-error-states-gracefully-showing-a-spinner-or-fallback-ui-instead-of-a-blank-screen-while-data-is-being-fetched",
-      "title": "Ensure the React Query hooks used by DashboardPage (habits query, activities query, user profile query) correctly call the backend actor and handle loading/error states gracefully, showing a spinner or fallback UI instead of a blank screen while data is being fetched.",
-      "reqIds": [
-        "REQ-2"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-verify-and-fix-the-useactor-hook-integration-in-the-dashboard-context-so-the-actor-is-fully-initialized-before-any-dashboard-queries-execute-preventing-null-undefined-actor-calls-that-silently-return-no-data",
-      "title": "Verify and fix the useActor hook integration in the dashboard context so the actor is fully initialized before any dashboard queries execute, preventing null/undefined actor calls that silently return no data.",
-      "reqIds": [
-        "REQ-3"
       ],
       "version": 1
     }
   ],
   "new_feature_requests": [],
-  "gameProjectType": "none",
-  "projectName": "Habit Tracker",
+  "projectName": "Remove admin privilege check blocking the Users section",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

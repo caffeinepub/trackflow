@@ -48,6 +48,12 @@ export interface Habit {
 }
 export type HabitGoal = { 'daily' : null } |
   { 'weekly' : null };
+export interface HabitStreak {
+  'active' : boolean,
+  'totalEntries' : bigint,
+  'habitId' : bigint,
+  'streakCount' : bigint,
+}
 export interface PaymentRequest {
   'id' : bigint,
   'status' : PaymentStatus,
@@ -73,6 +79,7 @@ export interface PlatformStats {
   'totalHabits' : bigint,
   'totalUsers' : bigint,
 }
+export interface StreakDay { 'date' : Time, 'habitId' : bigint }
 export type Time = bigint;
 export interface UserApprovalInfo {
   'status' : ApprovalStatus,
@@ -91,6 +98,13 @@ export interface UserProfile {
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export interface UserStreaks {
+  'totalActivities' : bigint,
+  'userId' : Principal,
+  'activeStreak' : bigint,
+  'habits' : Array<HabitStreak>,
+  'longestStreak' : bigint,
+}
 export interface _CaffeineStorageCreateCertificateResult {
   'method' : string,
   'blob_hash' : string,
@@ -119,155 +133,59 @@ export interface _SERVICE {
   >,
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
-  /**
-   * / Approve a payment request and update the user's plan.
-   */
   'approvePaymentRequest' : ActorMethod<[bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
-  /**
-   * / Assigns a role to a user (requires admin privileges).
-   */
   'assignRole' : ActorMethod<[Principal, UserRole], undefined>,
-  /**
-   * / Create a coupon
-   */
   'createCoupon' : ActorMethod<
     [string, bigint, bigint, [] | [Time]],
     undefined
   >,
-  /**
-   * / Create a new habit for the calling user.
-   */
   'createHabit' : ActorMethod<[string, HabitGoal, bigint, string], undefined>,
-  /**
-   * / Delete the calling user's own account.
-   */
   'deleteAccount' : ActorMethod<[], undefined>,
-  /**
-   * / Delete an activity. Only the owner (or admin) may delete.
-   */
   'deleteActivity' : ActorMethod<[bigint], undefined>,
-  /**
-   * / Delete a coupon by code.
-   */
   'deleteCoupon' : ActorMethod<[string], undefined>,
-  /**
-   * / Delete a habit. Only the owner (or admin) may delete.
-   */
   'deleteHabit' : ActorMethod<[bigint], undefined>,
-  /**
-   * / Get activities for a user. Users may only query their own; admins may
-   * / query any user's activities.
-   */
   'getActivities' : ActorMethod<
     [Principal, [] | [bigint], [] | [boolean]],
     Array<Activity>
   >,
-  /**
-   * / Get all payment requests.
-   */
   'getAllPaymentRequests' : ActorMethod<[], Array<PaymentRequest>>,
-  /**
-   * / Returns all user profiles.
-   */
   'getAllUsers' : ActorMethod<[], Array<UserProfile>>,
-  /**
-   * / Get the calling user's own profile.
-   */
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
-  /**
-   * / Look up a coupon by code. Only registered users may validate coupons.
-   */
   'getCoupon' : ActorMethod<[string], [] | [Coupon]>,
-  /**
-   * / Get habits for a user. Users may only query their own habits; admins may
-   * / query any user's habits.
-   */
+  'getHabitStreak' : ActorMethod<[bigint], bigint>,
+  'getHabitStreaks' : ActorMethod<[bigint], Array<StreakDay>>,
   'getHabits' : ActorMethod<[Principal, [] | [HabitGoal]], Array<Habit>>,
-  /**
-   * / Get the calling user's own payment requests.
-   */
   'getMyPaymentRequests' : ActorMethod<[], Array<PaymentRequest>>,
-  /**
-   * / Get all pending payment requests.
-   */
   'getPendingPaymentRequests' : ActorMethod<[], Array<PaymentRequest>>,
-  /**
-   * / Platform-wide statistics
-   */
   'getPlatformStats' : ActorMethod<[], PlatformStats>,
-  /**
-   * / Fetch another user's profile.
-   */
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'getUserStreak' : ActorMethod<[Principal], bigint>,
+  'getUserStreaks' : ActorMethod<[Principal], UserStreaks>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
-  /**
-   * / Check if the caller is approved (true for admins)
-   */
   'isCallerApproved' : ActorMethod<[], boolean>,
-  /**
-   * / Admin: List all approval entries
-   */
   'listApprovals' : ActorMethod<[], Array<UserApprovalInfo>>,
-  /**
-   * / List all coupons.
-   */
   'listCoupons' : ActorMethod<[], Array<Coupon>>,
-  /**
-   * / Log a new activity for the calling user.
-   */
   'logActivity' : ActorMethod<
     [bigint, string, Time, Time, bigint, boolean, bigint, string, Time],
     undefined
   >,
-  /**
-   * / Reject a payment request.
-   */
   'rejectPaymentRequest' : ActorMethod<[bigint], undefined>,
-  /**
-   * / Request approval as a new user
-   */
   'requestApproval' : ActorMethod<[], undefined>,
-  /**
-   * / Save / update the calling user's own profile.
-   */
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
-  /**
-   * / Search coupons by code substring.
-   */
   'searchCoupons' : ActorMethod<[string], Array<Coupon>>,
-  /**
-   * / Allows the caller to promote themselves to admin ONLY when no admin
-   * / currently exists in the system (i.e. first-time bootstrap).
-   * / The caller must already be a registered user (have a profile).
-   */
   'selfPromoteAdmin' : ActorMethod<[], undefined>,
-  /**
-   * / Admin: Set approval status for a user
-   */
   'setApproval' : ActorMethod<[Principal, ApprovalStatus], undefined>,
-  /**
-   * / Admin: Set a user's plan.
-   */
   'setUserPlan' : ActorMethod<[Principal, Plan, [] | [Time]], undefined>,
-  /**
-   * / Submit a payment request. Only registered users may submit.
-   */
   'submitPaymentRequest' : ActorMethod<
     [Plan, [] | [PlanCycle], string, [] | [string]],
     undefined
   >,
-  /**
-   * / Update an existing activity. Only the owner (or admin) may update.
-   */
   'updateActivity' : ActorMethod<
     [bigint, bigint, string, Time, Time, bigint, boolean, bigint, string, Time],
     undefined
   >,
-  /**
-   * / Update an existing habit. Only the owner (or admin) may update.
-   */
   'updateHabit' : ActorMethod<
     [bigint, string, HabitGoal, bigint, string],
     undefined

@@ -1,77 +1,36 @@
 {
   "kind": "build_request",
-  "title": "Fix dashboard data loading issue",
-  "projectName": "TrackFlow",
+  "title": "Remove admin privilege check blocking the Users section",
   "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Fix the dashboard page so that habit progress bars, today's stats cards, and activity timeline all load and display data correctly without remaining blank or failing to fetch.",
-      "target": "frontend",
+      "text": "Remove all remaining admin privilege / role-based access checks that block the Users section in the admin panel. Specifically, strip any guard in the backend that requires an admin role before returning user data (e.g. in any `getUsers`, `getAllUsers`, or similar query), and remove any frontend conditional in AdminPage or UsersTable that renders an 'Admin privileges required' error or hides the users tab based on a role check.",
+      "target": "both",
       "source": {
         "messageIds": [
-          "msg-11",
-          "msg-13"
+          "msg-latest"
         ],
         "quotes": [
-          "fix the dashboard it couldnt load the data"
+          "now it was asyin that Admin privileges required to view users."
         ]
       },
       "acceptanceCriteria": [
-        "Dashboard page renders without a blank or empty state when the user is authenticated",
-        "Habit progress bars display current vs. goal hours for today",
-        "Today's stats cards (total hours, earnings, etc.) show correct values",
-        "Activity timeline displays today's logged activities",
-        "No console errors related to data fetching or query failures on the dashboard"
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "text": "Ensure the React Query hooks used by DashboardPage (habits query, activities query, user profile query) correctly call the backend actor and handle loading/error states gracefully, showing a spinner or fallback UI instead of a blank screen while data is being fetched.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-11",
-          "msg-13"
-        ],
-        "quotes": [
-          "fix the dashboard it couldnt load the data"
-        ]
-      },
-      "acceptanceCriteria": [
-        "A loading indicator is shown while queries are in flight",
-        "An error message is shown if a query fails instead of a blank screen",
-        "Queries are not triggered before the backend actor is initialized",
-        "Stale or undefined actor references do not cause silent data fetch failures"
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Verify and fix the useActor hook integration in the dashboard context so the actor is fully initialized before any dashboard queries execute, preventing null/undefined actor calls that silently return no data.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-11",
-          "msg-13"
-        ],
-        "quotes": [
-          "the dashboard it couldnt load the data"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Dashboard queries are enabled only when the actor is non-null and identity is authenticated",
-        "Re-authentication or page refresh correctly re-initializes the actor and reloads dashboard data"
+        "Navigating to the Users tab in the admin panel no longer shows an 'Admin privileges required' message.",
+        "The users table loads and displays all users without any access-denied error.",
+        "No backend function returns an access-denied or unauthorized error when fetching users.",
+        "No frontend code conditionally hides or blocks the Users section based on a role or admin flag."
       ]
     }
   ],
   "constraints": [
-    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
-    "Do not change the backend data schema or Motoko actor logic unless required to fix a broken query endpoint"
+    "Do not alter the user data schema or remove any user records.",
+    "Do not touch frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or anything under frontend/src/components/ui."
   ],
   "nonGoals": [
-    "Adding new dashboard features or widgets",
-    "Changing the overall design or color theme",
-    "Modifying the habits, activities, or analytics pages"
+    "Adding new admin features or tabs.",
+    "Implementing a new authentication or role system.",
+    "Changing the visual design of the admin panel."
   ],
   "imageRequirements": {
     "required": [],

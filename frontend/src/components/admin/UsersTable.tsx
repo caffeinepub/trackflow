@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Copy, Users, AlertCircle } from 'lucide-react';
+import { Search, Copy, Users, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,12 +37,16 @@ const planLabels: Record<string, string> = {
 
 function formatDate(ts: bigint | undefined | null): string {
   if (!ts) return '—';
-  const ms = Number(ts) / 1_000_000;
-  return new Date(ms).toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  try {
+    const ms = Number(ts) / 1_000_000;
+    return new Date(ms).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return '—';
+  }
 }
 
 export default function UsersTable() {
@@ -52,11 +56,11 @@ export default function UsersTable() {
   const [savingPrincipal, setSavingPrincipal] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<Record<string, string>>({});
 
-  const { data: users, isLoading, isError, error } = useGetAllUsers();
+  const { data: users, isLoading, isError, error, refetch } = useGetAllUsers();
   const setUserPlan = useSetUserPlan();
 
   const handleCopy = (principal: string) => {
-    navigator.clipboard.writeText(principal);
+    navigator.clipboard.writeText(principal).catch(() => {});
     setCopiedId(principal);
     setTimeout(() => setCopiedId(null), 1500);
   };
@@ -91,7 +95,10 @@ export default function UsersTable() {
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setSaveError((prev) => ({ ...prev, [principal]: msg }));
+      setSaveError((prev) => ({
+        ...prev,
+        [principal]: msg,
+      }));
     } finally {
       setSavingPrincipal(null);
     }
@@ -107,22 +114,29 @@ export default function UsersTable() {
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">
-          Loading users…
+        <CardContent className="py-12 flex flex-col items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <p>Loading users…</p>
         </CardContent>
       </Card>
     );
   }
 
   if (isError) {
-    const msg = error instanceof Error ? error.message : String(error);
+    const errMsg = error instanceof Error ? error.message : String(error ?? '');
     return (
       <Card>
         <CardContent className="py-12">
           <div className="flex flex-col items-center gap-3 text-center">
             <AlertCircle className="h-8 w-8 text-destructive" />
             <p className="font-medium text-destructive">Failed to load users.</p>
-            <p className="text-sm text-muted-foreground">{msg}</p>
+            {errMsg && (
+              <p className="text-sm text-muted-foreground max-w-sm">{errMsg}</p>
+            )}
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -131,7 +145,7 @@ export default function UsersTable() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
         <CardTitle className="flex items-center gap-2">
           <Users className="h-5 w-5" />
           All Users
@@ -153,7 +167,7 @@ export default function UsersTable() {
         {filtered.length === 0 ? (
           <div className="py-12 flex flex-col items-center gap-2 text-muted-foreground">
             <Users className="h-8 w-8 opacity-40" />
-            <p>No users found</p>
+            <p>{search ? 'No users match your search' : 'No users found'}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -212,6 +226,7 @@ export default function UsersTable() {
                               onValueChange={(val) =>
                                 handlePlanChange(principalStr, val as Plan)
                               }
+                              disabled={isSaving}
                             >
                               <SelectTrigger className="w-28 h-8 text-xs">
                                 <SelectValue />
@@ -229,13 +244,20 @@ export default function UsersTable() {
                                 onClick={() => handlePlanSave(principalStr, currentPlan)}
                                 disabled={isSaving}
                               >
-                                {isSaving ? 'Saving…' : 'Save'}
+                                {isSaving ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                    Saving…
+                                  </>
+                                ) : (
+                                  'Save'
+                                )}
                               </Button>
                             )}
                           </div>
                           {rowError && (
-                            <p className="text-xs text-destructive max-w-[200px] truncate" title={rowError}>
-                              {rowError.includes('Unauthorized') ? 'Admin role required to change plans.' : rowError}
+                            <p className="text-xs text-destructive max-w-[200px]" title={rowError}>
+                              {rowError}
                             </p>
                           )}
                         </div>

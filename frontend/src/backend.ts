@@ -89,7 +89,24 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface UserStreaks {
+    totalActivities: bigint;
+    userId: Principal;
+    activeStreak: bigint;
+    habits: Array<HabitStreak>;
+    longestStreak: bigint;
+}
+export interface StreakDay {
+    date: Time;
+    habitId: bigint;
+}
 export type Time = bigint;
+export interface HabitStreak {
+    active: boolean;
+    totalEntries: bigint;
+    habitId: bigint;
+    streakCount: bigint;
+}
 export interface _CaffeineStorageRefillInformation {
     proposed_top_up_amount?: bigint;
 }
@@ -102,6 +119,10 @@ export interface Coupon {
     discountPercent: bigint;
     usageLimit: bigint;
 }
+export interface _CaffeineStorageCreateCertificateResult {
+    method: string;
+    blob_hash: string;
+}
 export interface Habit {
     id: bigint;
     goalType: HabitGoal;
@@ -112,10 +133,6 @@ export interface Habit {
     goalValue: bigint;
     isActive: boolean;
     streakCount: bigint;
-}
-export interface _CaffeineStorageCreateCertificateResult {
-    method: string;
-    blob_hash: string;
 }
 export interface UserApprovalInfo {
     status: ApprovalStatus;
@@ -196,140 +213,44 @@ export interface backendInterface {
     _caffeineStorageRefillCashier(refillInformation: _CaffeineStorageRefillInformation | null): Promise<_CaffeineStorageRefillResult>;
     _caffeineStorageUpdateGatewayPrincipals(): Promise<void>;
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
-    /**
-     * / Approve a payment request and update the user's plan.
-     */
     approvePaymentRequest(requestId: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
-    /**
-     * / Assigns a role to a user (requires admin privileges).
-     */
     assignRole(user: Principal, role: UserRole): Promise<void>;
-    /**
-     * / Create a coupon
-     */
     createCoupon(code: string, discountPercent: bigint, usageLimit: bigint, expiresAt: Time | null): Promise<void>;
-    /**
-     * / Create a new habit for the calling user.
-     */
     createHabit(name: string, goalType: HabitGoal, goalValue: bigint, color: string): Promise<void>;
-    /**
-     * / Delete the calling user's own account.
-     */
     deleteAccount(): Promise<void>;
-    /**
-     * / Delete an activity. Only the owner (or admin) may delete.
-     */
     deleteActivity(activityId: bigint): Promise<void>;
-    /**
-     * / Delete a coupon by code.
-     */
     deleteCoupon(code: string): Promise<void>;
-    /**
-     * / Delete a habit. Only the owner (or admin) may delete.
-     */
     deleteHabit(habitId: bigint): Promise<void>;
-    /**
-     * / Get activities for a user. Users may only query their own; admins may
-     * / query any user's activities.
-     */
     getActivities(userId: Principal, habitId: bigint | null, isProductive: boolean | null): Promise<Array<Activity>>;
-    /**
-     * / Get all payment requests.
-     */
     getAllPaymentRequests(): Promise<Array<PaymentRequest>>;
-    /**
-     * / Returns all user profiles.
-     */
     getAllUsers(): Promise<Array<UserProfile>>;
-    /**
-     * / Get the calling user's own profile.
-     */
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
-    /**
-     * / Look up a coupon by code. Only registered users may validate coupons.
-     */
     getCoupon(code: string): Promise<Coupon | null>;
-    /**
-     * / Get habits for a user. Users may only query their own habits; admins may
-     * / query any user's habits.
-     */
+    getHabitStreak(habitId: bigint): Promise<bigint>;
+    getHabitStreaks(habitId: bigint): Promise<Array<StreakDay>>;
     getHabits(userId: Principal, goalType: HabitGoal | null): Promise<Array<Habit>>;
-    /**
-     * / Get the calling user's own payment requests.
-     */
     getMyPaymentRequests(): Promise<Array<PaymentRequest>>;
-    /**
-     * / Get all pending payment requests.
-     */
     getPendingPaymentRequests(): Promise<Array<PaymentRequest>>;
-    /**
-     * / Platform-wide statistics
-     */
     getPlatformStats(): Promise<PlatformStats>;
-    /**
-     * / Fetch another user's profile.
-     */
     getUserProfile(user: Principal): Promise<UserProfile | null>;
+    getUserStreak(userId: Principal): Promise<bigint>;
+    getUserStreaks(userId: Principal): Promise<UserStreaks>;
     isCallerAdmin(): Promise<boolean>;
-    /**
-     * / Check if the caller is approved (true for admins)
-     */
     isCallerApproved(): Promise<boolean>;
-    /**
-     * / Admin: List all approval entries
-     */
     listApprovals(): Promise<Array<UserApprovalInfo>>;
-    /**
-     * / List all coupons.
-     */
     listCoupons(): Promise<Array<Coupon>>;
-    /**
-     * / Log a new activity for the calling user.
-     */
     logActivity(habitId: bigint, customName: string, startTime: Time, endTime: Time, duration: bigint, isProductive: boolean, earnings: bigint, notes: string, date: Time): Promise<void>;
-    /**
-     * / Reject a payment request.
-     */
     rejectPaymentRequest(requestId: bigint): Promise<void>;
-    /**
-     * / Request approval as a new user
-     */
     requestApproval(): Promise<void>;
-    /**
-     * / Save / update the calling user's own profile.
-     */
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
-    /**
-     * / Search coupons by code substring.
-     */
     searchCoupons(searchQuery: string): Promise<Array<Coupon>>;
-    /**
-     * / Allows the caller to promote themselves to admin ONLY when no admin
-     * / currently exists in the system (i.e. first-time bootstrap).
-     * / The caller must already be a registered user (have a profile).
-     */
     selfPromoteAdmin(): Promise<void>;
-    /**
-     * / Admin: Set approval status for a user
-     */
     setApproval(user: Principal, status: ApprovalStatus): Promise<void>;
-    /**
-     * / Admin: Set a user's plan.
-     */
     setUserPlan(user: Principal, plan: Plan, planExpiry: Time | null): Promise<void>;
-    /**
-     * / Submit a payment request. Only registered users may submit.
-     */
     submitPaymentRequest(plan: Plan, cycle: PlanCycle | null, transactionId: string, couponCode: string | null): Promise<void>;
-    /**
-     * / Update an existing activity. Only the owner (or admin) may update.
-     */
     updateActivity(activityId: bigint, habitId: bigint, customName: string, startTime: Time, endTime: Time, duration: bigint, isProductive: boolean, earnings: bigint, notes: string, date: Time): Promise<void>;
-    /**
-     * / Update an existing habit. Only the owner (or admin) may update.
-     */
     updateHabit(habitId: bigint, name: string, goalType: HabitGoal, goalValue: bigint, color: string): Promise<void>;
 }
 import type { ApprovalStatus as _ApprovalStatus, Coupon as _Coupon, Habit as _Habit, HabitGoal as _HabitGoal, PaymentRequest as _PaymentRequest, PaymentStatus as _PaymentStatus, Plan as _Plan, PlanCycle as _PlanCycle, Time as _Time, UserApprovalInfo as _UserApprovalInfo, UserProfile as _UserProfile, UserRole as _UserRole, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
@@ -643,6 +564,34 @@ export class Backend implements backendInterface {
             return from_candid_opt_n33(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getHabitStreak(arg0: bigint): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getHabitStreak(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getHabitStreak(arg0);
+            return result;
+        }
+    }
+    async getHabitStreaks(arg0: bigint): Promise<Array<StreakDay>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getHabitStreaks(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getHabitStreaks(arg0);
+            return result;
+        }
+    }
     async getHabits(arg0: Principal, arg1: HabitGoal | null): Promise<Array<Habit>> {
         if (this.processError) {
             try {
@@ -711,6 +660,34 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getUserProfile(arg0);
             return from_candid_opt_n30(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getUserStreak(arg0: Principal): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getUserStreak(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getUserStreak(arg0);
+            return result;
+        }
+    }
+    async getUserStreaks(arg0: Principal): Promise<UserStreaks> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getUserStreaks(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getUserStreaks(arg0);
+            return result;
         }
     }
     async isCallerAdmin(): Promise<boolean> {

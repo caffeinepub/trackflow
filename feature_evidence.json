@@ -2,13 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-fix-the-dashboard-page-so-that-habit-progress-bars-today-s-stats-cards-and-activity-timeline-all-load-and-display-data-correctly-without-remaining-blank-or-failing-to-fetch",
-      "featureTitle": "Fix the dashboard page so that habit progress bars, today's stats cards, and activity timeline all load and display data correctly without remaining blank or failing to fetch.",
+      "featureId": "feature-remove-all-remaining-admin-privilege-role-based-access-checks-that-block-the-users-section-in-the-admin-panel-specifically-strip-any-guard-in-the-backend-that-requires-an-admin-role-before-returning-user-data-e-g-in-any-getusers-getallusers-or-similar-query-and-remove-any-frontend-conditional-in-adminpage-or-userstable-that-renders-an-admin-privileges-required-error-or-hides-the-users-tab-based-on-a-role-check",
+      "featureTitle": "Remove all remaining admin privilege / role-based access checks that block the Users section in the admin panel. Specifically, strip any guard in the backend that requires an admin role before returning user data (e.g. in any `getUsers`, `getAllUsers`, or similar query), and remove any frontend conditional in AdminPage or UsersTable that renders an 'Admin privileges required' error or hides the users tab based on a role check.",
       "files": [
-        "frontend/src/components/dashboard/ActivityTimeline.tsx",
-        "frontend/src/components/dashboard/HabitProgressBar.tsx",
-        "frontend/src/components/dashboard/StatsCard.tsx",
-        "frontend/src/pages/DashboardPage.tsx"
+        "frontend/src/components/admin/UsersTable.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -22,50 +19,6 @@
       ],
       "testIds": [
         "REQ-1"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-ensure-the-react-query-hooks-used-by-dashboardpage-habits-query-activities-query-user-profile-query-correctly-call-the-backend-actor-and-handle-loading-error-states-gracefully-showing-a-spinner-or-fallback-ui-instead-of-a-blank-screen-while-data-is-being-fetched",
-      "featureTitle": "Ensure the React Query hooks used by DashboardPage (habits query, activities query, user profile query) correctly call the backend actor and handle loading/error states gracefully, showing a spinner or fallback UI instead of a blank screen while data is being fetched.",
-      "files": [
-        "frontend/src/hooks/useQueries.ts",
-        "frontend/src/pages/DashboardPage.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "blob-storage@4.0.0",
-        "user-approval@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-2"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-verify-and-fix-the-useactor-hook-integration-in-the-dashboard-context-so-the-actor-is-fully-initialized-before-any-dashboard-queries-execute-preventing-null-undefined-actor-calls-that-silently-return-no-data",
-      "featureTitle": "Verify and fix the useActor hook integration in the dashboard context so the actor is fully initialized before any dashboard queries execute, preventing null/undefined actor calls that silently return no data.",
-      "files": [
-        "frontend/src/hooks/useQueries.ts",
-        "frontend/src/pages/DashboardPage.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "blob-storage@4.0.0",
-        "user-approval@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-3"
       ],
       "confidence": "high"
     }

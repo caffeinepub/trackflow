@@ -1,232 +1,251 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Habit } from '../../backend';
 import { useLogActivity } from '../../hooks/useQueries';
-import { Habit, HabitGoal } from '../../backend';
-import { Clock, DollarSign, FileText, Loader2, X } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Loader2 } from 'lucide-react';
 
 interface AddActivityFormProps {
   habits: Habit[];
-  selectedDate: Date;
-  onSuccess: () => void;
+  onSuccess?: () => void;
 }
 
-export default function AddActivityForm({ habits, selectedDate, onSuccess }: AddActivityFormProps) {
+export default function AddActivityForm({
+  habits,
+  onSuccess,
+}: AddActivityFormProps) {
   const logActivity = useLogActivity();
 
-  const [habitId, setHabitId] = useState<string>('0');
+  const [habitId, setHabitId] = useState('');
   const [customName, setCustomName] = useState('');
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [isProductive, setIsProductive] = useState(true);
-  const [earnings, setEarnings] = useState('0');
+  const [earnings, setEarnings] = useState('');
   const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const calcDuration = (): number => {
-    const [sh, sm] = startTime.split(':').map(Number);
-    const [eh, em] = endTime.split(':').map(Number);
-    const startMins = sh * 60 + sm;
-    const endMins = eh * 60 + em;
-    return Math.max(0, endMins - startMins);
+  // Pre-fill start time with current time
+  useEffect(() => {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    setStartTime(`${hh}:${mm}`);
+  }, []);
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!habitId) newErrors.habitId = 'Please select a habit.';
+    if (!customName.trim()) newErrors.customName = 'Activity name is required.';
+    if (!startTime) newErrors.startTime = 'Start time is required.';
+    if (!endTime) newErrors.endTime = 'End time is required.';
+    if (startTime && endTime && endTime <= startTime) {
+      newErrors.endTime = 'End time must be after start time.';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
-
-  const duration = calcDuration();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
 
-    const selectedHabit = habits.find(h => String(h.id) === habitId);
-    const activityName = customName.trim() || selectedHabit?.name || '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dateNs = BigInt(today.getTime()) * 1_000_000n;
 
-    if (!activityName) {
-      toast.error('Please enter an activity name or select a habit');
-      return;
-    }
-    if (duration <= 0) {
-      toast.error('End time must be after start time');
-      return;
-    }
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
 
-    // Build timestamps from selected date + time
-    const dateStr = selectedDate.toISOString().split('T')[0];
-    const startDate = new Date(`${dateStr}T${startTime}:00`);
-    const endDate = new Date(`${dateStr}T${endTime}:00`);
-    const dateTs = new Date(dateStr).getTime();
+    const startDate = new Date(today);
+    startDate.setHours(startH, startM, 0, 0);
+    const endDate = new Date(today);
+    endDate.setHours(endH, endM, 0, 0);
+
+    const startNs = BigInt(startDate.getTime()) * 1_000_000n;
+    const endNs = BigInt(endDate.getTime()) * 1_000_000n;
+    const durationMinutes = BigInt(
+      Math.round((endDate.getTime() - startDate.getTime()) / 60000)
+    );
 
     try {
       await logActivity.mutateAsync({
         habitId: BigInt(habitId),
-        customName: activityName,
-        startTime: BigInt(startDate.getTime()) * BigInt(1_000_000),
-        endTime: BigInt(endDate.getTime()) * BigInt(1_000_000),
-        duration: BigInt(duration),
+        customName: customName.trim(),
+        startTime: startNs,
+        endTime: endNs,
+        duration: durationMinutes,
         isProductive,
-        earnings: BigInt(Math.max(0, parseInt(earnings) || 0)),
+        earnings: BigInt(Math.round(Number(earnings) || 0)),
         notes: notes.trim(),
-        date: BigInt(dateTs) * BigInt(1_000_000),
+        date: dateNs,
       });
-      toast.success('Activity logged!');
+
       // Reset form
-      setHabitId('0');
+      setHabitId('');
       setCustomName('');
-      setStartTime('09:00');
-      setEndTime('10:00');
+      setEndTime('');
       setIsProductive(true);
-      setEarnings('0');
+      setEarnings('');
       setNotes('');
-      onSuccess();
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to log activity');
+      setErrors({});
+      onSuccess?.();
+    } catch (err) {
+      console.error('Failed to log activity:', err);
     }
   };
 
+  const activeHabits = habits.filter((h) => h.isActive);
+
   return (
-    <Card className="border-0 shadow-sm border-l-4 border-l-indigo-500">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold text-slate-800">Log Activity</CardTitle>
-          <button onClick={onSuccess} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Habit selector */}
-            <div>
-              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Habit (optional)</Label>
-              <Select value={habitId} onValueChange={setHabitId}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select habit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">No habit / Custom</SelectItem>
-                  {habits.filter(h => h.isActive).map(h => (
-                    <SelectItem key={String(h.id)} value={String(h.id)}>
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full inline-block"
-                          style={{ backgroundColor: h.color || '#4f46e5' }}
-                        />
-                        {h.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Custom name */}
-            <div>
-              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Activity Name</Label>
-              <Input
-                placeholder="e.g. Deep work, Reading..."
-                value={customName}
-                onChange={e => setCustomName(e.target.value)}
-                className="h-9"
-              />
-            </div>
-
-            {/* Start time */}
-            <div>
-              <Label className="text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Start Time
-              </Label>
-              <Input
-                type="time"
-                value={startTime}
-                onChange={e => setStartTime(e.target.value)}
-                className="h-9"
-              />
-            </div>
-
-            {/* End time */}
-            <div>
-              <Label className="text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1">
-                <Clock className="w-3 h-3" /> End Time
-              </Label>
-              <Input
-                type="time"
-                value={endTime}
-                onChange={e => setEndTime(e.target.value)}
-                className="h-9"
-              />
-            </div>
-
-            {/* Earnings */}
-            <div>
-              <Label className="text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1">
-                <DollarSign className="w-3 h-3" /> Earnings (₹)
-              </Label>
-              <Input
-                type="number"
-                min="0"
-                value={earnings}
-                onChange={e => setEarnings(e.target.value)}
-                className="h-9"
-              />
-            </div>
-
-            {/* Duration display */}
-            <div className="flex items-end">
-              <div className="bg-slate-50 rounded-lg px-3 py-2 text-sm w-full">
-                <span className="text-slate-500 text-xs">Duration: </span>
-                <span className="font-semibold text-slate-700">
-                  {duration > 0 ? `${Math.floor(duration / 60)}h ${duration % 60}m` : '—'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <Label className="text-xs font-medium text-slate-600 mb-1.5 flex items-center gap-1">
-              <FileText className="w-3 h-3" /> Notes (optional)
-            </Label>
-            <Textarea
-              placeholder="Any notes about this activity..."
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              className="resize-none"
-            />
-          </div>
-
-          {/* Productive checkbox + submit */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="productive"
-                checked={isProductive}
-                onCheckedChange={v => setIsProductive(!!v)}
-              />
-              <Label htmlFor="productive" className="text-sm text-slate-600 cursor-pointer">
-                Productive activity
-              </Label>
-            </div>
-            <Button
-              type="submit"
-              disabled={logActivity.isPending}
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
-              {logActivity.isPending ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                </span>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Habit */}
+        <div className="space-y-1.5">
+          <Label htmlFor="habit-select">Habit *</Label>
+          <Select value={habitId} onValueChange={setHabitId}>
+            <SelectTrigger id="habit-select" className={errors.habitId ? 'border-destructive' : ''}>
+              <SelectValue placeholder="Select a habit" />
+            </SelectTrigger>
+            <SelectContent>
+              {activeHabits.length === 0 ? (
+                <SelectItem value="__none__" disabled>
+                  No habits yet — create one first
+                </SelectItem>
               ) : (
-                'Log Activity'
+                activeHabits.map((h) => (
+                  <SelectItem key={h.id.toString()} value={h.id.toString()}>
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="inline-block w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: h.color }}
+                      />
+                      {h.name}
+                    </span>
+                  </SelectItem>
+                ))
               )}
-            </Button>
+            </SelectContent>
+          </Select>
+          {errors.habitId && (
+            <p className="text-xs text-destructive">{errors.habitId}</p>
+          )}
+        </div>
+
+        {/* Activity Name */}
+        <div className="space-y-1.5">
+          <Label htmlFor="activity-name">Activity Name *</Label>
+          <Input
+            id="activity-name"
+            placeholder="e.g. Morning coding session"
+            value={customName}
+            onChange={(e) => setCustomName(e.target.value)}
+            className={errors.customName ? 'border-destructive' : ''}
+          />
+          {errors.customName && (
+            <p className="text-xs text-destructive">{errors.customName}</p>
+          )}
+        </div>
+
+        {/* Start Time */}
+        <div className="space-y-1.5">
+          <Label htmlFor="start-time">Start Time *</Label>
+          <Input
+            id="start-time"
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className={errors.startTime ? 'border-destructive' : ''}
+          />
+          {errors.startTime && (
+            <p className="text-xs text-destructive">{errors.startTime}</p>
+          )}
+        </div>
+
+        {/* End Time */}
+        <div className="space-y-1.5">
+          <Label htmlFor="end-time">End Time *</Label>
+          <Input
+            id="end-time"
+            type="time"
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+            className={errors.endTime ? 'border-destructive' : ''}
+          />
+          {errors.endTime && (
+            <p className="text-xs text-destructive">{errors.endTime}</p>
+          )}
+        </div>
+
+        {/* Earnings */}
+        <div className="space-y-1.5">
+          <Label htmlFor="earnings">Earnings / Income (₹)</Label>
+          <Input
+            id="earnings"
+            type="number"
+            min="0"
+            placeholder="0"
+            value={earnings}
+            onChange={(e) => setEarnings(e.target.value)}
+          />
+        </div>
+
+        {/* Productive */}
+        <div className="space-y-1.5 flex flex-col justify-end">
+          <div className="flex items-center gap-2 pb-1">
+            <Checkbox
+              id="is-productive"
+              checked={isProductive}
+              onCheckedChange={(v) => setIsProductive(!!v)}
+            />
+            <Label htmlFor="is-productive" className="cursor-pointer">
+              Mark as Productive
+            </Label>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div className="space-y-1.5">
+        <Label htmlFor="notes">Notes (optional)</Label>
+        <Textarea
+          id="notes"
+          placeholder="Any notes about this activity..."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          className="resize-none"
+        />
+      </div>
+
+      {/* Submit */}
+      <div className="flex justify-end gap-2">
+        {logActivity.isError && (
+          <p className="text-xs text-destructive self-center">
+            Failed to log activity. Please try again.
+          </p>
+        )}
+        <Button type="submit" disabled={logActivity.isPending}>
+          {logActivity.isPending ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Logging...
+            </>
+          ) : (
+            'Log Activity'
+          )}
+        </Button>
+      </div>
+    </form>
   );
 }

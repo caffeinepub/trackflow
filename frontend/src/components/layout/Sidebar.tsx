@@ -1,6 +1,6 @@
+import React from 'react';
 import { useInternetIdentity } from '../../hooks/useInternetIdentity';
 import { useQueryClient } from '@tanstack/react-query';
-import { useIsCallerApproved } from '../../hooks/useQueries';
 import {
   LayoutDashboard,
   BarChart2,
@@ -26,6 +26,7 @@ const navItems = [
   { icon: ListChecks, label: 'Activities', path: '/activities' },
   { icon: CheckSquare, label: 'Habits', path: '/habits' },
   { icon: User, label: 'Profile', path: '/profile' },
+  { icon: Shield, label: 'Admin', path: '/admin' },
 ];
 
 function getActivePath(): string {
@@ -35,13 +36,8 @@ function getActivePath(): string {
 }
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const { identity, clear } = useInternetIdentity();
+  const { clear } = useInternetIdentity();
   const queryClient = useQueryClient();
-
-  // Use the principal string to detect admin — the admin page is password-protected
-  // so we just show it for all authenticated users and let the page handle access.
-  // We still call useIsCallerApproved to keep the hook pattern consistent.
-  const { data: isApproved } = useIsCallerApproved();
 
   const activePath = getActivePath();
 
@@ -54,14 +50,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const navigate = (path: string) => {
     window.location.hash = `#${path}`;
   };
-
-  // Show admin link for all authenticated users — the AdminPage itself handles auth
-  const showAdmin = !!identity;
-
-  const allNavItems = [
-    ...navItems,
-    ...(showAdmin ? [{ icon: Shield, label: 'Admin', path: '/admin' }] : []),
-  ];
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -82,8 +70,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-          {allNavItems.map(({ icon: Icon, label, path }) => {
-            const isActive = activePath === path || activePath.startsWith(path);
+          {navItems.map(({ icon: Icon, label, path }) => {
+            const isActive = activePath === path || (path !== '/dashboard' && activePath.startsWith(path));
             return collapsed ? (
               <Tooltip key={path}>
                 <TooltipTrigger asChild>

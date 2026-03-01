@@ -2,33 +2,74 @@ import React from 'react';
 
 interface StatsCardProps {
   label: string;
-  value: string | number;
+  value: string;
   icon: React.ReactNode;
-  color: 'blue' | 'green' | 'purple' | 'orange' | 'red' | 'indigo';
+  color: 'indigo' | 'emerald' | 'amber' | 'purple' | 'rose' | 'sky';
+  subtitle?: string;
 }
 
-const colorMap: Record<string, string> = {
-  blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-  green: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-  purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
-  orange: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
-  red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
-  indigo: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400',
+const colorMap: Record<
+  StatsCardProps['color'],
+  { bg: string; icon: string; border: string }
+> = {
+  indigo: {
+    bg: 'bg-indigo-50 dark:bg-indigo-950/40',
+    icon: 'text-indigo-600 dark:text-indigo-400',
+    border: 'border-indigo-100 dark:border-indigo-900',
+  },
+  emerald: {
+    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+    icon: 'text-emerald-600 dark:text-emerald-400',
+    border: 'border-emerald-100 dark:border-emerald-900',
+  },
+  amber: {
+    bg: 'bg-amber-50 dark:bg-amber-950/40',
+    icon: 'text-amber-600 dark:text-amber-400',
+    border: 'border-amber-100 dark:border-amber-900',
+  },
+  purple: {
+    bg: 'bg-purple-50 dark:bg-purple-950/40',
+    icon: 'text-purple-600 dark:text-purple-400',
+    border: 'border-purple-100 dark:border-purple-900',
+  },
+  rose: {
+    bg: 'bg-rose-50 dark:bg-rose-950/40',
+    icon: 'text-rose-600 dark:text-rose-400',
+    border: 'border-rose-100 dark:border-rose-900',
+  },
+  sky: {
+    bg: 'bg-sky-50 dark:bg-sky-950/40',
+    icon: 'text-sky-600 dark:text-sky-400',
+    border: 'border-sky-100 dark:border-sky-900',
+  },
 };
 
-export default function StatsCard({ label, value, icon, color }: StatsCardProps) {
-  const iconClass = colorMap[color] ?? colorMap.blue;
+export default function StatsCard({
+  label,
+  value,
+  icon,
+  color,
+  subtitle,
+}: StatsCardProps) {
+  const colors = colorMap[color];
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-      <div className={`p-2 rounded-lg shrink-0 ${iconClass}`}>
-        {icon}
+    <div
+      className={`rounded-xl border ${colors.border} ${colors.bg} p-4 flex flex-col gap-3 shadow-sm`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {label}
+        </span>
+        <span className={`${colors.icon}`}>{icon}</span>
       </div>
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground truncate">{label}</p>
-        <p className="text-lg font-bold text-foreground truncate">
-          {value ?? '0'}
+      <div>
+        <p className="text-2xl font-bold text-foreground leading-tight truncate">
+          {value}
         </p>
+        {subtitle && (
+          <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+        )}
       </div>
     </div>
   );

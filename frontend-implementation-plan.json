@@ -1,80 +1,27 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix Dashboard Data Loading Issue",
+  "title": "Remove admin privilege check blocking the Users section",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Fix dashboard data rendering to ensure habit progress bars, stats cards, and activity timeline all display correctly without remaining blank",
+      "summary": "Remove all remaining admin privilege checks that block the Users section in the admin panel, ensuring users can be displayed without role-based access errors",
       "acceptanceCriteria": [
-        "Dashboard page renders without a blank or empty state when the user is authenticated",
-        "Habit progress bars display current vs. goal hours for today",
-        "Today's stats cards (total hours, earnings, etc.) show correct values",
-        "Activity timeline displays today's logged activities",
-        "No console errors related to data fetching or query failures on the dashboard"
+        "Navigating to the Users tab in the admin panel no longer shows an 'Admin privileges required' message.",
+        "The users table loads and displays all users without any access-denied error.",
+        "No backend function returns an access-denied or unauthorized error when fetching users.",
+        "No frontend code conditionally hides or blocks the Users section based on a role or admin flag."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/DashboardPage.tsx",
+          "path": "frontend/src/pages/AdminPage.tsx",
           "operation": "modify",
-          "description": "Review and fix the data fetching logic in DashboardPage. Ensure queries for habits, activities, and user profile are properly awaited and their results are correctly passed to child components (StatsCard, AddActivityForm, ActivityTimeline, HabitProgressBar). Add null/undefined checks before rendering data-dependent UI. Verify that the selected date state is correctly initialized and used in query filters. Ensure loading states are handled gracefully with spinners or skeleton UI instead of blank screens."
+          "description": "Remove any conditional rendering or error messages in the Users tab that check for admin privileges or roles before displaying the UsersTable component. Ensure the Users tab content renders unconditionally without access checks."
         },
         {
-          "path": "frontend/src/components/dashboard/HabitProgressBar.tsx",
+          "path": "frontend/src/components/admin/UsersTable.tsx",
           "operation": "modify",
-          "description": "Review the HabitProgressBar component to ensure it correctly receives habit data and calculates progress. Verify that the component handles missing or empty data gracefully (e.g., showing 0/X hours when no activities exist). Add defensive checks for null/undefined habit or activity props before attempting to render progress bars."
-        },
-        {
-          "path": "frontend/src/components/dashboard/StatsCard.tsx",
-          "operation": "modify",
-          "description": "Review StatsCard to ensure it handles undefined or null values gracefully. Add default values (e.g., 0 for numeric stats) when data is missing. Ensure the component does not crash or render blank when stats are not yet loaded."
-        },
-        {
-          "path": "frontend/src/components/dashboard/ActivityTimeline.tsx",
-          "operation": "modify",
-          "description": "Review ActivityTimeline to ensure it correctly receives and renders the activities array. Add handling for empty arrays (show a 'No activities logged today' message). Ensure the component does not remain blank when activities data is an empty array or null."
-        }
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "summary": "Ensure React Query hooks handle loading and error states gracefully, showing spinners or fallback UI instead of blank screens during data fetching",
-      "acceptanceCriteria": [
-        "A loading indicator is shown while queries are in flight",
-        "An error message is shown if a query fails instead of a blank screen",
-        "Queries are not triggered before the backend actor is initialized",
-        "Stale or undefined actor references do not cause silent data fetch failures"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Review all React Query hooks used by the dashboard (useGetHabits, useGetActivities, useGetCallerUserProfile). Ensure each hook's 'enabled' option checks that the actor is defined and not in a fetching state before executing queries. Add proper error handling within each hook (e.g., retry: false for auth-dependent queries). Ensure that queries return meaningful error objects when they fail, and that hooks expose isLoading, isError, and error states to consuming components."
-        },
-        {
-          "path": "frontend/src/pages/DashboardPage.tsx",
-          "operation": "modify",
-          "description": "Add comprehensive loading and error state handling in DashboardPage. Display a centered loading spinner (e.g., using a Spinner component or Lucide loader icon) while any of the critical queries (habits, activities, user profile) are loading. If any query returns an error, display a user-friendly error message (e.g., 'Failed to load dashboard data. Please try again.') with a retry button. Ensure the dashboard does not render its main content (stats, timeline, progress bars) until all required data is successfully loaded."
-        }
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "summary": "Verify and fix the actor initialization flow so the actor is fully ready before dashboard queries execute, preventing null/undefined actor calls",
-      "acceptanceCriteria": [
-        "Dashboard queries are enabled only when the actor is non-null and identity is authenticated",
-        "Re-authentication or page refresh correctly re-initializes the actor and reloads dashboard data"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/DashboardPage.tsx",
-          "operation": "modify",
-          "description": "Review the useActor() and useInternetIdentity() integration in DashboardPage. Ensure that the actor and identity are both checked for existence before enabling any queries. Use the actorFetching state (if exposed by useActor) or a derived isActorReady flag to gate query execution. Verify that when the user re-authenticates or refreshes the page, the actor is properly re-initialized and all dashboard queries are invalidated and refetched. Add console logs (to be removed after debugging) to trace actor initialization state during development."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "For each dashboard-related query hook (useGetHabits, useGetActivities, useGetCallerUserProfile), ensure the 'enabled' option includes checks for both actor existence and actor readiness (e.g., enabled: !!actor && !actorFetching). If actorFetching is not currently exposed by useActor, add a condition that prevents queries from running if the actor is null or the identity is not authenticated. Document these safeguards in code comments to clarify the dependency on actor initialization."
+          "description": "Remove any frontend guards, conditional rendering, or 'Admin privileges required' error messages that block the users table from loading. Remove any checks against user roles or admin flags that prevent the getAllUsers query from executing or displaying results. Ensure the table renders and fetches users without role-based restrictions."
         }
       ]
     }

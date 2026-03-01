@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Tag, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Tag, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,12 +17,16 @@ import { useListCoupons, useCreateCoupon, useDeleteCoupon } from '@/hooks/useQue
 
 function formatDate(ts: bigint | undefined | null): string {
   if (!ts) return 'Never';
-  const ms = Number(ts) / 1_000_000;
-  return new Date(ms).toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  try {
+    const ms = Number(ts) / 1_000_000;
+    return new Date(ms).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return 'Never';
+  }
 }
 
 export default function CouponManagement() {
@@ -31,26 +35,38 @@ export default function CouponManagement() {
   const [usageLimit, setUsageLimit] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [formError, setFormError] = useState('');
+  const [deleteError, setDeleteError] = useState<Record<string, string>>({});
 
-  const { data: coupons, isLoading, isError } = useListCoupons();
+  const { data: coupons, isLoading, isError, error, refetch } = useListCoupons();
   const createCoupon = useCreateCoupon();
   const deleteCoupon = useDeleteCoupon();
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
-    if (!code.trim()) return setFormError('Coupon code is required.');
+
+    if (!code.trim()) {
+      setFormError('Coupon code is required.');
+      return;
+    }
     const discountNum = parseInt(discount, 10);
-    if (isNaN(discountNum) || discountNum < 1 || discountNum > 100)
-      return setFormError('Discount must be between 1 and 100.');
+    if (isNaN(discountNum) || discountNum < 1 || discountNum > 100) {
+      setFormError('Discount must be between 1 and 100.');
+      return;
+    }
     const usageLimitNum = parseInt(usageLimit, 10);
-    if (isNaN(usageLimitNum) || usageLimitNum < 1)
-      return setFormError('Usage limit must be at least 1.');
+    if (isNaN(usageLimitNum) || usageLimitNum < 1) {
+      setFormError('Usage limit must be at least 1.');
+      return;
+    }
 
     let expiresAtNs: bigint | null = null;
     if (expiresAt) {
       const ms = new Date(expiresAt).getTime();
-      if (isNaN(ms)) return setFormError('Invalid expiry date.');
+      if (isNaN(ms)) {
+        setFormError('Invalid expiry date.');
+        return;
+      }
       expiresAtNs = BigInt(ms) * 1_000_000n;
     }
 
@@ -65,17 +81,29 @@ export default function CouponManagement() {
       setDiscount('');
       setUsageLimit('');
       setExpiresAt('');
+      setFormError('');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setFormError(msg);
+      setFormError(
+        msg.includes('Unauthorized') ? 'Admin privileges required to create coupons.' : `Failed to create coupon: ${msg}`
+      );
     }
   };
 
   const handleDelete = async (couponCode: string) => {
+    setDeleteError((prev) => {
+      const next = { ...prev };
+      delete next[couponCode];
+      return next;
+    });
     try {
       await deleteCoupon.mutateAsync(couponCode);
     } catch (err) {
-      // Error is handled silently; the list will not update if deletion fails
+      const msg = err instanceof Error ? err.message : String(err);
+      setDeleteError((prev) => ({
+        ...prev,
+        [couponCode]: msg.includes('Unauthorized') ? 'Admin privileges required.' : `Failed to delete: ${msg}`,
+      }));
     }
   };
 
@@ -97,7 +125,11 @@ export default function CouponManagement() {
                 id="coupon-code"
                 placeholder="e.g. SAVE20"
                 value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setCode(e.target.value.toUpperCase());
+                  setFormError('');
+                }}
+                disabled={createCoupon.isPending}
               />
             </div>
             <div className="space-y-1.5">
@@ -109,7 +141,11 @@ export default function CouponManagement() {
                 min={1}
                 max={100}
                 value={discount}
-                onChange={(e) => setDiscount(e.target.value)}
+                onChange={(e) => {
+                  setDiscount(e.target.value);
+                  setFormError('');
+                }}
+                disabled={createCoupon.isPending}
               />
             </div>
             <div className="space-y-1.5">
@@ -120,7 +156,11 @@ export default function CouponManagement() {
                 placeholder="e.g. 100"
                 min={1}
                 value={usageLimit}
-                onChange={(e) => setUsageLimit(e.target.value)}
+                onChange={(e) => {
+                  setUsageLimit(e.target.value);
+                  setFormError('');
+                }}
+                disabled={createCoupon.isPending}
               />
             </div>
             <div className="space-y-1.5">
@@ -129,7 +169,11 @@ export default function CouponManagement() {
                 id="coupon-expiry"
                 type="date"
                 value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
+                onChange={(e) => {
+                  setExpiresAt(e.target.value);
+                  setFormError('');
+                }}
+                disabled={createCoupon.isPending}
               />
             </div>
             {formError && (
@@ -170,12 +214,26 @@ export default function CouponManagement() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="py-12 text-center text-muted-foreground">Loading coupons…</div>
+            <div className="py-12 flex flex-col items-center gap-3 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <p>Loading coupons…</p>
+            </div>
           ) : isError ? (
             <div className="py-12">
               <div className="flex flex-col items-center gap-3 text-center">
                 <AlertCircle className="h-8 w-8 text-destructive" />
-                <p className="font-medium text-destructive">Unable to load coupons.</p>
+                <p className="font-medium text-destructive">
+                  {(() => {
+                    const msg = error instanceof Error ? error.message : String(error ?? '');
+                    return msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('admin')
+                      ? 'Admin privileges required to view coupons.'
+                      : 'Unable to load coupons.';
+                  })()}
+                </p>
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Retry
+                </Button>
               </div>
             </div>
           ) : (coupons ?? []).length === 0 ? (
@@ -213,16 +271,27 @@ export default function CouponManagement() {
                         {formatDate(coupon.createdAt)}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="h-7 gap-1 text-xs"
-                          onClick={() => handleDelete(coupon.code)}
-                          disabled={deleteCoupon.isPending}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete
-                        </Button>
+                        <div className="flex flex-col gap-1 items-start">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-7 gap-1 text-xs"
+                            onClick={() => handleDelete(coupon.code)}
+                            disabled={deleteCoupon.isPending}
+                          >
+                            {deleteCoupon.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                            Delete
+                          </Button>
+                          {deleteError[coupon.code] && (
+                            <p className="text-xs text-destructive max-w-[150px]">
+                              {deleteError[coupon.code]}
+                            </p>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

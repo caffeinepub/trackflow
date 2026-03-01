@@ -1,12 +1,10 @@
 # Specification
 
 ## Summary
-**Goal:** Fix the TrackFlow dashboard so that all data (habit progress bars, stats cards, and activity timeline) loads and displays correctly for authenticated users.
+**Goal:** Remove all admin privilege/role-based access checks that block the Users section in the admin panel.
 
 **Planned changes:**
-- Fix React Query hooks in DashboardPage so they correctly call the backend actor for habits, activities, and user profile data
-- Ensure dashboard queries are only enabled when the backend actor is fully initialized and the user is authenticated
-- Add loading spinner while queries are in flight and error fallback UI if a query fails
-- Prevent null/undefined actor references from causing silent data fetch failures
+- Remove any backend guard (in `getUsers`, `getAllUsers`, or similar queries) that requires an admin role before returning user data
+- Remove any frontend conditional in AdminPage or UsersTable that renders an "Admin privileges required" error or hides the users tab based on a role check
 
-**User-visible outcome:** The dashboard loads and displays habit progress bars, today's stats cards, and the activity timeline correctly instead of showing a blank screen.
+**User-visible outcome:** The Users tab in the admin panel loads and displays all users without any "Admin privileges required" message or access-denied error.
